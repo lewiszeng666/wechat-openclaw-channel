@@ -20,9 +20,7 @@ import urllib.request
 import urllib.error
 from typing import Optional, Dict, Tuple, List
 
-# OpenClaw 配置文件路径（本机不一定存在，仅供参考）
-OPENCLAW_CONFIG = "/root/.openclaw/openclaw.json"
-OPENCLAW_ALLOW_FROM = "/root/.openclaw/credentials/feishu-default-allowFrom.json"
+# 注意：本服务与 OpenClaw 部署在不同机器，通过飞书消息通道通信
 
 
 def _log(msg: str):

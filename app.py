@@ -344,22 +344,25 @@ def start_wecom_setup():
     feishu_app_secret = data.get("feishu_app_secret")
     feishu_open_id = data.get("feishu_open_id")
     
-    if not feishu_app_id or not feishu_app_secret or not feishu_open_id:
+    if not feishu_app_id or not feishu_app_secret:
         return jsonify({
             "success": False,
             "error": "缺少飞书机器人凭证，请先完成飞书扫码验证",
-            "hint": "需要传入 feishu_app_id, feishu_app_secret, feishu_open_id"
+            "hint": "需要传入 feishu_app_id, feishu_app_secret"
         })
     
-    # 验证飞书通道（发送测试消息）
-    logger.info(f"[start_wecom_setup] 验证飞书通道: app_id={feishu_app_id}")
-    test_result = send_test_message_via_bot(feishu_app_id, feishu_app_secret, feishu_open_id)
-    if not test_result["success"]:
-        return jsonify({
-            "success": False, 
-            "error": f"飞书通道验证失败: {test_result['message']}",
-            "hint": "请确认飞书机器人凭证正确，且已与 OpenClaw 建立通道"
-        })
+    # 验证飞书通道（发送测试消息）- 如果有 open_id 才验证
+    if feishu_open_id:
+        logger.info(f"[start_wecom_setup] 验证飞书通道: app_id={feishu_app_id}")
+        test_result = send_test_message_via_bot(feishu_app_id, feishu_app_secret, feishu_open_id)
+        if not test_result["success"]:
+            return jsonify({
+                "success": False, 
+                "error": f"飞书通道验证失败: {test_result['message']}",
+                "hint": "请确认飞书机器人凭证正确，且已与 OpenClaw 建立通道"
+            })
+    else:
+        logger.warning("[start_wecom_setup] 未提供 open_id，跳过飞书通道验证")
     
     corp_id = get_corp_id_from_cookies()
     if not corp_id:
@@ -424,7 +427,7 @@ def _execute_wecom_setup(task_id: str, corp_id: str, app_name: str):
     feishu_app_secret = feishu_creds.get("app_secret")
     feishu_open_id = feishu_creds.get("open_id")
     
-    if not feishu_app_id or not feishu_app_secret or not feishu_open_id:
+    if not feishu_app_id or not feishu_app_secret:
         task["status"] = "failed"
         task["error"] = "飞书凭证丢失，请重新开始"
         return
@@ -688,28 +691,16 @@ def configure_wecom_plugin_api():
 
 @app.route('/api/openclaw-config')
 def get_openclaw_config():
-    """获取 OpenClaw 配置信息（飞书扫码后自动生成）"""
-    config_path = Config.OPENCLAW_CONFIG_PATH
-    
-    if not os.path.exists(config_path):
-        return jsonify({
-            "success": False,
-            "message": "OpenClaw 配置不存在，请先完成飞书扫码"
-        })
-    
-    try:
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-        
-        return jsonify({
-            "success": True,
-            "config": {
-                "feishu_app_id": config.get("feishu", {}).get("app_id", ""),
-                "feishu_configured": bool(config.get("feishu", {}).get("app_id"))
-            }
-        })
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)})
+    """
+    获取 OpenClaw 配置状态
+    注意：本服务与 OpenClaw 不在同一机器，无法直接读取 OpenClaw 配置文件。
+    飞书通道的验证通过发送测试消息完成，而不是读取本地文件。
+    """
+    return jsonify({
+        "success": True,
+        "message": "OpenClaw 配置需要通过飞书通道验证，请使用 /api/feishu/verify 接口",
+        "note": "本服务与 OpenClaw 部署在不同机器"
+    })
 
 
 @app.route('/health')

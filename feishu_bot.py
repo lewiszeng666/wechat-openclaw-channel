@@ -214,11 +214,9 @@ POLL_INTERVAL = 2
 
 AVATAR_URL = "https://90-1251810746.cos.ap-guangzhou.myqcloud.com/ico.png"
 
-# 配置路径：优先使用环境变量，否则使用默认路径
-OPENCLAW_CONFIG = os.environ.get("OPENCLAW_CONFIG", "/root/.openclaw/openclaw.json")
-OPENCLAW_ALLOW_FROM = os.environ.get("OPENCLAW_ALLOW_FROM", "/root/.openclaw/credentials/feishu-default-allowFrom.json")
-WEBSOCKET_POLL_INTERVAL = 3   # 轮询长连接状态的间隔 (秒)
-WEBSOCKET_POLL_TIMEOUT = 60   # 等待长连接建立的最大时间 (秒)
+# WebSocket 轮询配置（用于创建新机器人时等待长连接建立）
+WEBSOCKET_POLL_INTERVAL = 3   # 轮询间隔 (秒)
+WEBSOCKET_POLL_TIMEOUT = 60   # 最大等待时间 (秒)
 
 STATE_DIR = "/tmp"
 STATE_FILE = os.path.join(STATE_DIR, "feishu-bot-creator-state.json")
@@ -488,66 +486,6 @@ def _download_avatar() -> str:
     except Exception as e:
         _log(f"[头像] 下载失败: {e}")
         return ""
-
-
-def _write_openclaw_config(app_id: str, app_secret: str) -> bool:
-    """将飞书 app_id/app_secret 写入 openclaw.json 配置文件。"""
-    _log(f"[配置] 写入 openclaw 配置: {OPENCLAW_CONFIG}")
-
-    # 确保目录存在
-    config_dir = os.path.dirname(OPENCLAW_CONFIG)
-    os.makedirs(config_dir, exist_ok=True)
-
-    # 读取现有配置（如果存在）
-    config = {}
-    if os.path.isfile(OPENCLAW_CONFIG):
-        try:
-            with open(OPENCLAW_CONFIG) as f:
-                config = json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
-            _log(f"  [警告] 读取现有配置失败: {e}, 将创建新配置")
-
-    # 写入 feishu 频道配置
-    if "channels" not in config:
-        config["channels"] = {}
-    config["channels"]["feishu"] = {
-        "enabled": True,
-        "appId": app_id,
-        "appSecret": app_secret,
-        "domain": "feishu",
-        "groupPolicy": "open",
-    }
-
-    try:
-        with open(OPENCLAW_CONFIG, "w") as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
-        _log(f"  [成功] 已写入 feishu 配置 (appId={app_id})")
-        return True
-    except IOError as e:
-        _log(f"  [失败] 写入配置文件: {e}")
-        return False
-
-
-def _write_allow_from(open_id: str) -> bool:
-    """将 owner open_id 写入 feishu-default-allowFrom.json。"""
-    _log(f"[配置] 写入 allowFrom: {OPENCLAW_ALLOW_FROM}")
-
-    config_dir = os.path.dirname(OPENCLAW_ALLOW_FROM)
-    os.makedirs(config_dir, exist_ok=True)
-
-    data = {
-        "version": 1,
-        "allowFrom": [open_id],
-    }
-
-    try:
-        with open(OPENCLAW_ALLOW_FROM, "w") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        _log(f"  [成功] 已写入 allowFrom (open_id={open_id})")
-        return True
-    except IOError as e:
-        _log(f"  [失败] 写入 allowFrom: {e}")
-        return False
 
 
 def _kill_cdp_browser():
