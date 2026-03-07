@@ -241,6 +241,79 @@ def _gen_bot_name() -> str:
     return f"OpenClaw机器人-{random.randint(1000, 9999)}"
 
 
+def _find_existing_openclaw_bot(creator: "FeishuBotCreator") -> Optional[dict]:
+    """
+    检查是否已存在可用的 OpenClaw 机器人。
+    
+    条件:
+    1. 应用名称包含 "OpenClaw" 或 "openclaw"
+    2. 应用已启用 (appStatus >= 1)
+    3. 应用有机器人能力
+    
+    返回: {"app_id": str, "name": str} 或 None
+    """
+    _log("[检查] 查找已存在的 OpenClaw 机器人...")
+    
+    # 获取应用列表
+    body = creator._get(f"{API_BASE}/app/list?page=1&page_size=50")
+    if not body or body.get("code") != 0:
+        _log("  [跳过] 无法获取应用列表")
+        return None
+    
+    apps = body.get("data", {}).get("apps", [])
+    if not apps:
+        _log("  [跳过] 没有已创建的应用")
+        return None
+    
+    _log(f"  找到 {len(apps)} 个应用，开始筛选...")
+    
+    for app in apps:
+        app_name = app.get("name", "") or app.get("appName", "")
+        app_id = app.get("clientId") or app.get("appId") or app.get("app_id", "")
+        app_status = app.get("appStatus", 0)  # 1=已上线, 0=开发中
+        
+        # 检查名称是否包含 OpenClaw
+        if "openclaw" not in app_name.lower():
+            continue
+        
+        _log(f"  检查应用: {app_name} (app_id={app_id}, status={app_status})")
+        
+        # 检查是否有机器人能力
+        detail = creator._get(f"{API_BASE}/app/{app_id}")
+        if not detail or detail.get("code") != 0:
+            _log(f"    [跳过] 无法获取应用详情")
+            continue
+        
+        app_data = detail.get("data", {})
+        abilities = app_data.get("abilities", [])
+        has_bot = any(
+            ab.get("abilityId") == "robot" or ab.get("ability_id") == "robot" or ab.get("type") == "bot"
+            for ab in abilities
+        ) if abilities else False
+        
+        # 也检查 robotEnabled 字段
+        robot_enabled = app_data.get("robotEnabled", False) or app_data.get("robot_enabled", False)
+        
+        if not has_bot and not robot_enabled:
+            _log(f"    [跳过] 没有机器人能力 (abilities={abilities})")
+            continue
+        
+        # 检查应用状态
+        actual_status = app_data.get("appStatus", app_status)
+        if actual_status < 1:
+            _log(f"    [跳过] 应用未上线 (status={actual_status})")
+            continue
+        
+        _log(f"    [匹配] 找到可用的 OpenClaw 机器人!")
+        return {
+            "app_id": app_id,
+            "name": app_name,
+        }
+    
+    _log("  [结果] 未找到可复用的 OpenClaw 机器人")
+    return None
+
+
 # ============================================================
 # 状态文件 & 工具
 # ============================================================
@@ -263,7 +336,11 @@ def _load_state() -> dict:
         return json.load(f)
 
 
+# 全局日志收集器
+_log_buffer = []
+
 def _log(msg: str) -> None:
+    _log_buffer.append(msg)
     print(msg, file=sys.stderr)
 
 
@@ -1054,13 +1131,6 @@ def cmd_poll():
         page.goto(APP_PAGE, wait_until="domcontentloaded", timeout=30000)
     page.wait_for_timeout(2000)
 
-    # ---- 自动执行 create ----
-    _log("[poll] 自动执行 create + apply ...")
-
-    bot_name = _gen_bot_name()
-    bot_desc = bot_name
-    avatar_path = _download_avatar()
-
     creator = FeishuBotCreator(page)
     creator.install_network_capture()
 
@@ -1069,17 +1139,40 @@ def cmd_poll():
     csrf = creator._csrf()
     _log(f"  CSRF token: {'获取成功' if csrf else '未获取，继续尝试'}")
 
-    if not creator.step1_create_app(bot_name, bot_desc, avatar_path):
-        _kill_cdp_browser(); pw.stop()
-        _output_json({"status": "error", "message": "创建应用失败"})
-        sys.exit(1)
+    # ---- 检查是否已存在可用的 OpenClaw 机器人 ----
+    existing_bot = _find_existing_openclaw_bot(creator)
+    if existing_bot:
+        _log(f"[复用] 找到已存在的 OpenClaw 机器人: {existing_bot['name']} (app_id={existing_bot['app_id']})")
+        creator.app_id = existing_bot["app_id"]
+        
+        # 获取 app_secret
+        if not creator.step2_get_credentials():
+            _log("[警告] 无法获取已有应用的凭证，尝试创建新应用")
+            existing_bot = None
+        else:
+            _log(f"[复用] 已获取凭证: app_id={creator.app_id}")
 
-    if not creator.step2_get_credentials():
-        _kill_cdp_browser(); pw.stop()
-        _output_json({"status": "error", "message": "获取凭证失败"})
-        sys.exit(1)
+    if not existing_bot:
+        # ---- 自动执行 create ----
+        _log("[poll] 未找到可复用的机器人，创建新应用 ...")
 
-    _log(f"[create] 完成: app_id={creator.app_id}")
+        bot_name = _gen_bot_name()
+        bot_desc = bot_name
+        avatar_path = _download_avatar()
+
+        if not creator.step1_create_app(bot_name, bot_desc, avatar_path):
+            _kill_cdp_browser(); pw.stop()
+            _output_json({"status": "error", "message": "创建应用失败", "logs": _log_buffer[-20:]})
+            sys.exit(1)
+
+        if not creator.step2_get_credentials():
+            _kill_cdp_browser(); pw.stop()
+            _output_json({"status": "error", "message": "获取凭证失败", "logs": _log_buffer[-20:]})
+            sys.exit(1)
+
+        _log(f"[create] 完成: app_id={creator.app_id}")
+    else:
+        bot_name = existing_bot["name"]
 
     # ---- 写入 openclaw 配置，让服务建立长连接 ----
     _log("[配置] 写入 openclaw.json，等待服务建立长连接 ...")
@@ -1092,22 +1185,25 @@ def cmd_poll():
     _log("[配置] 等待 2s 让 openclaw 服务读取配置 ...")
     time.sleep(2)
 
-    # ---- 自动执行 apply ----
-    _log("[apply] 开始添加能力/事件/权限/发布 ...")
+    # ---- 自动执行 apply (仅新创建的应用需要) ----
+    if not existing_bot:
+        _log("[apply] 开始添加能力/事件/权限/发布 ...")
 
-    steps = [
-        creator.step3_add_bot,
-        creator.step4_event_mode,
-        creator.step5_add_event,
-        creator.step6_callback_mode,
-        creator.step7_permissions,
-        creator.step8_publish,
-    ]
-    for fn in steps:
-        if not fn():
-            _kill_cdp_browser(); pw.stop()
-            _output_json({"status": "error", "message": f"{fn.__name__} 失败"})
-            sys.exit(1)
+        steps = [
+            creator.step3_add_bot,
+            creator.step4_event_mode,
+            creator.step5_add_event,
+            creator.step6_callback_mode,
+            creator.step7_permissions,
+            creator.step8_publish,
+        ]
+        for fn in steps:
+            if not fn():
+                _kill_cdp_browser(); pw.stop()
+                _output_json({"status": "error", "message": f"{fn.__name__} 失败"})
+                sys.exit(1)
+    else:
+        _log("[复用] 已有应用无需重新配置，跳过 apply 步骤")
 
     open_id = creator.step9_get_owner_open_id()
 
@@ -1129,6 +1225,7 @@ def cmd_poll():
         "version_id": creator.version_id,
         "open_id": open_id,
         "manage_url": f"{BASE_URL}/app/{creator.app_id}",
+        "reused": existing_bot is not None,  # 标识是复用还是新创建
     }
 
     _save_state({"phase": "done", **result})
