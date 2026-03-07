@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenClaw 企微接入控制台</title>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -311,14 +311,16 @@
                     // 生成二维码
                     const qrContainer = document.getElementById('feishu-qrcode');
                     qrContainer.innerHTML = '';
-                    QRCode.toCanvas(qrContainer, data.qr_content, {
-                        width: 200,
-                        margin: 2
-                    }, function(error) {
-                        if (error) {
-                            qrContainer.innerHTML = '<p style="color: red;">二维码生成失败</p>';
-                        }
-                    });
+                    try {
+                        new QRCode(qrContainer, {
+                            text: data.qr_content,
+                            width: 200,
+                            height: 200,
+                            correctLevel: QRCode.CorrectLevel.M
+                        });
+                    } catch (qrError) {
+                        qrContainer.innerHTML = '<p style="color: red;">二维码生成失败</p>';
+                    }
                     
                     // 开始轮询
                     startPolling();
