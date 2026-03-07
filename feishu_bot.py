@@ -23,6 +23,11 @@ import sys
 import shutil
 import platform
 
+# 对于 init 和 poll 命令，立即抑制所有 stderr 输出，避免污染 JSON 响应
+if len(sys.argv) > 1 and sys.argv[1] in ("init", "poll"):
+    sys.stderr = open(os.devnull, "w")
+    os.dup2(os.open(os.devnull, os.O_WRONLY), 2)
+
 _REQUIRED_PACKAGES = [("playwright", "playwright")]
 
 
@@ -953,10 +958,6 @@ def cmd_init():
 # 通过 CDP 连接 init 启动的浏览器，检测扫码 → 自动 create + apply
 # ============================================================
 def cmd_poll():
-    # 抑制 stderr 输出，避免干扰 JSON 响应
-    sys.stderr = open(os.devnull, "w")
-    os.dup2(os.open(os.devnull, os.O_WRONLY), 2)
-    
     data = _load_state()
 
     if data.get("phase") not in ("init",):
