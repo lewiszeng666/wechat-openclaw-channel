@@ -3,15 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenClaw 企业微信接入</title>
+    <title>OpenClaw 企微接入控制台</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
@@ -23,94 +20,90 @@
         .card {
             background: white;
             border-radius: 16px;
-            padding: 32px;
+            padding: 30px;
             margin-bottom: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
         }
         h1 {
             color: #333;
-            margin-bottom: 8px;
-            font-size: 28px;
+            margin-bottom: 10px;
+            font-size: 24px;
         }
         .subtitle {
             color: #666;
-            margin-bottom: 24px;
-            font-size: 16px;
+            margin-bottom: 20px;
         }
         .status-card {
             display: flex;
             align-items: center;
-            padding: 16px;
-            border-radius: 12px;
-            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
         }
-        .status-card.valid {
-            background: #e8f5e9;
-            border: 1px solid #a5d6a7;
-        }
-        .status-card.invalid {
-            background: #ffebee;
-            border: 1px solid #ef9a9a;
-        }
-        .status-card.warning {
-            background: #fff3e0;
-            border: 1px solid #ffcc80;
-        }
+        .status-card.success { background: #d4edda; }
+        .status-card.warning { background: #fff3cd; }
+        .status-card.error { background: #f8d7da; }
         .status-icon {
             font-size: 24px;
-            margin-right: 12px;
-        }
-        .status-text {
-            flex: 1;
-        }
-        .status-text h3 {
-            font-size: 16px;
-            color: #333;
-            margin-bottom: 4px;
-        }
-        .status-text p {
-            font-size: 14px;
-            color: #666;
-        }
-        .steps {
-            margin: 24px 0;
+            margin-right: 15px;
         }
         .step {
             display: flex;
             align-items: flex-start;
-            margin-bottom: 20px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+        .step.active {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        .step.completed {
+            border-color: #28a745;
+            background: #f0fff4;
         }
         .step-number {
-            width: 32px;
-            height: 32px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
-            background: #667eea;
-            color: white;
+            background: #e0e0e0;
+            color: #666;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            margin-right: 16px;
+            margin-right: 15px;
             flex-shrink: 0;
         }
-        .step-content h3 {
-            font-size: 16px;
-            margin-bottom: 4px;
-            color: #333;
+        .step.active .step-number {
+            background: #667eea;
+            color: white;
         }
-        .step-content p {
+        .step.completed .step-number {
+            background: #28a745;
+            color: white;
+        }
+        .step-content { flex: 1; }
+        .step-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .step-desc {
             color: #666;
             font-size: 14px;
         }
         .btn {
             display: inline-block;
-            padding: 14px 28px;
+            padding: 12px 24px;
+            border: none;
             border-radius: 8px;
             font-size: 16px;
-            font-weight: 500;
             cursor: pointer;
-            border: none;
-            transition: all 0.2s;
+            transition: all 0.3s;
+            text-decoration: none;
         }
         .btn-primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -118,421 +111,346 @@
         }
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
         }
         .btn-primary:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
         }
-        .btn-secondary {
-            background: #f5f5f5;
-            color: #333;
-            margin-left: 12px;
-        }
-        .btn-secondary:hover {
-            background: #e0e0e0;
-        }
-        .progress-container {
-            display: none;
-            margin-top: 24px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 12px;
-        }
-        .progress-step {
-            display: flex;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #eee;
-        }
-        .progress-step:last-child {
-            border-bottom: none;
-        }
-        .progress-step .icon {
-            width: 28px;
-            height: 28px;
-            margin-right: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-        }
-        .progress-step.pending .icon::before { content: "⏳"; }
-        .progress-step.running .icon::before { content: "🔄"; animation: spin 1s linear infinite; }
-        .progress-step.done .icon::before { content: "✅"; }
-        .progress-step.error .icon::before { content: "❌"; }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        .progress-step .text {
-            flex: 1;
-            font-size: 14px;
-        }
-        .progress-step.running .text {
-            font-weight: 500;
-            color: #667eea;
-        }
         .qrcode-container {
-            display: none;
             text-align: center;
-            padding: 32px;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-radius: 16px;
-            margin-top: 24px;
+            padding: 20px;
         }
-        .qrcode-container img {
-            max-width: 200px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        #feishu-qrcode {
+            margin: 20px auto;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            display: inline-block;
         }
-        .qrcode-container h3 {
-            margin-top: 20px;
-            color: #333;
-            font-size: 18px;
-        }
-        .qrcode-container p {
+        .qrcode-tip {
             color: #666;
-            margin-top: 8px;
             font-size: 14px;
+            margin-top: 10px;
         }
-        .result-info {
+        .result-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
             margin-top: 20px;
-            padding: 16px;
-            background: #fff;
-            border-radius: 8px;
-            text-align: left;
         }
-        .result-info .item {
+        .result-item {
             display: flex;
             justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
         }
-        .result-info .item:last-child {
-            border-bottom: none;
-        }
-        .result-info .label {
-            color: #666;
-            font-size: 14px;
-        }
-        .result-info .value {
+        .result-item:last-child { border-bottom: none; }
+        .result-label { color: #666; }
+        .result-value { 
+            font-family: monospace;
             color: #333;
-            font-weight: 500;
-            font-size: 14px;
+            word-break: break-all;
         }
-        .input-group {
-            margin-bottom: 16px;
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
         }
-        .input-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #333;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
-        .input-group input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: border-color 0.2s;
-        }
-        .input-group input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-        .alert {
-            padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .alert-warning {
-            background: #fff3e0;
-            border: 1px solid #ffcc80;
-            color: #e65100;
-        }
-        .alert-error {
-            background: #ffebee;
-            border: 1px solid #ef9a9a;
-            color: #c62828;
-        }
-        .code-block {
-            background: #2d2d2d;
-            color: #f8f8f2;
-            padding: 16px;
-            border-radius: 8px;
-            margin-top: 12px;
-            overflow-x: auto;
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 13px;
-        }
-        .footer {
+        .hidden { display: none !important; }
+        .wechat-qrcode {
             text-align: center;
-            padding: 16px;
-            color: rgba(255,255,255,0.8);
-            font-size: 14px;
+            padding: 30px;
+            background: #f0fff4;
+            border-radius: 10px;
+            margin-top: 20px;
         }
-        .footer a {
-            color: white;
-            text-decoration: none;
+        .wechat-qrcode img {
+            max-width: 200px;
+            border-radius: 10px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="card">
-            <h1>🚀 OpenClaw 企业微信接入</h1>
-            <p class="subtitle">自动化配置企业微信，快速接入OpenClaw AI能力</p>
+            <h1>🚀 OpenClaw 企微接入控制台</h1>
+            <p class="subtitle">自动化配置企业微信，一键接入 OpenClaw</p>
             
-            <!-- Cookie状态 -->
-            <div class="status-card {{ 'valid' if cookie_status.valid else 'invalid' }}">
+            <!-- Cookie 状态 -->
+            <div class="status-card {{ 'success' if cookie_status.valid else 'warning' }}">
                 <span class="status-icon">{{ '✅' if cookie_status.valid else '⚠️' }}</span>
-                <div class="status-text">
-                    <h3>Cookie状态: {{ '有效' if cookie_status.valid else '无效/已过期' }}</h3>
+                <div>
+                    <strong>企微Cookie状态</strong>
                     <p>{{ cookie_status.message }}</p>
+                    {% if corp_id %}
+                    <p style="font-size: 12px; color: #666;">企业ID: {{ corp_id }}</p>
+                    {% endif %}
                 </div>
             </div>
-            
-            {% if not cookie_status.valid %}
-            <!-- Cookie无效提示 -->
-            <div class="alert alert-warning">
-                <h3 style="margin-bottom: 8px;">⚠️ 需要预存Cookie</h3>
-                <p>请运维人员先运行以下命令预存企微后台Cookie：</p>
-                <div class="code-block">python cookie_manager.py save {{ config.WECOM_CORP_ID or 'YOUR_CORP_ID' }}</div>
-                <p style="margin-top: 12px; font-size: 13px;">Cookie有效期约20小时，过期后需重新运行上述命令。</p>
-            </div>
-            {% else %}
-            
-            <!-- 配置流程说明 -->
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h3>SSH连接OpenClaw服务器</h3>
-                        <p>验证与OpenClaw服务器的SSH连接</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h3>安装WeChat插件</h3>
-                        <p>通过CLI安装 @openclaw-china/wecom-app 插件</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h3>自动配置企微</h3>
-                        <p>创建应用、配置Webhook和可信IP（使用预存Cookie）</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <h3>微信扫码关注</h3>
-                        <p>扫描微信二维码关注企业，即可开始使用</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 配置表单 -->
-            <div class="input-group">
-                <label>应用名称</label>
-                <input type="text" id="appName" value="OpenClaw AI助手" placeholder="输入应用显示名称">
-            </div>
-            
-            <button class="btn btn-primary" id="startBtn" onclick="startSetup()">
-                🚀 开始配置
-            </button>
-            <button class="btn btn-secondary" onclick="testConnection()">
-                🔗 测试SSH连接
-            </button>
-            
-            <!-- 进度显示 -->
-            <div class="progress-container" id="progressContainer">
-                <h3 style="margin-bottom: 16px; color: #333;">配置进度</h3>
-                <div class="progress-step pending" id="step0">
-                    <span class="icon"></span>
-                    <span class="text">测试SSH连接</span>
-                </div>
-                <div class="progress-step pending" id="step1">
-                    <span class="icon"></span>
-                    <span class="text">安装 OpenClaw WeChat 插件</span>
-                </div>
-                <div class="progress-step pending" id="step2">
-                    <span class="icon"></span>
-                    <span class="text">配置企业微信后台</span>
-                </div>
-                <div class="progress-step pending" id="step3">
-                    <span class="icon"></span>
-                    <span class="text">生成微信关注二维码</span>
-                </div>
-            </div>
-            
-            <!-- 错误显示 -->
-            <div class="alert alert-error" id="errorContainer" style="display: none;">
-                <h3 style="margin-bottom: 8px;">❌ 配置失败</h3>
-                <p id="errorMessage"></p>
-            </div>
-            
-            <!-- 二维码显示 -->
-            <div class="qrcode-container" id="qrcodeContainer">
-                <img id="wechatQrcode" src="" alt="微信二维码">
-                <h3>🎉 配置完成！扫描关注企业微信</h3>
-                <p>使用微信扫描上方二维码，即可开始与AI对话</p>
-                
-                <div class="result-info" id="resultInfo">
-                    <div class="item">
-                        <span class="label">企业ID</span>
-                        <span class="value" id="resultCorpId">-</span>
-                    </div>
-                    <div class="item">
-                        <span class="label">应用ID</span>
-                        <span class="value" id="resultAgentId">-</span>
-                    </div>
-                    <div class="item">
-                        <span class="label">服务器IP</span>
-                        <span class="value" id="resultPublicIp">-</span>
-                    </div>
-                    <div class="item">
-                        <span class="label">Webhook URL</span>
-                        <span class="value" id="resultWebhook">-</span>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
         </div>
-        
-        <div class="footer">
-            <p>
-                Powered by <a href="https://github.com/openclaw" target="_blank">OpenClaw</a> | 
-                Cookie剩余: <strong>{{ '%.1f'|format(cookie_status.remaining_hours) }}</strong> 小时
-            </p>
+
+        <!-- 步骤1: 飞书扫码 -->
+        <div class="card">
+            <div class="step active" id="step1">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <div class="step-title">飞书扫码登录</div>
+                    <div class="step-desc">使用飞书 App 扫描二维码，自动创建飞书机器人并配置 OpenClaw</div>
+                    
+                    <div id="feishu-init" style="margin-top: 15px;">
+                        <button class="btn btn-primary" onclick="initFeishu()">
+                            获取飞书二维码
+                        </button>
+                    </div>
+                    
+                    <div id="feishu-qrcode-section" class="qrcode-container hidden">
+                        <div id="feishu-qrcode"></div>
+                        <p class="qrcode-tip">请使用飞书 App 扫描上方二维码</p>
+                        <p id="feishu-status" style="color: #667eea; margin-top: 10px;">等待扫码...</p>
+                    </div>
+                    
+                    <div id="feishu-result" class="result-box hidden">
+                        <h4 style="margin-bottom: 15px;">✅ 飞书机器人创建成功</h4>
+                        <div class="result-item">
+                            <span class="result-label">机器人名称</span>
+                            <span class="result-value" id="bot-name">-</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">App ID</span>
+                            <span class="result-value" id="feishu-app-id">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 步骤2: 企微配置 -->
+        <div class="card">
+            <div class="step" id="step2">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <div class="step-title">配置企业微信</div>
+                    <div class="step-desc">自动创建企微应用、配置 Webhook 和可信 IP</div>
+                    
+                    <div id="wecom-start" style="margin-top: 15px;">
+                        <input type="text" id="app-name" placeholder="应用名称（默认：OpenClaw AI助手）" 
+                               style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; width: 250px; margin-right: 10px;">
+                        <button class="btn btn-primary" onclick="startWecomSetup()" id="btn-wecom" disabled>
+                            开始配置企微
+                        </button>
+                    </div>
+                    
+                    <div id="wecom-progress" class="hidden" style="margin-top: 15px;">
+                        <p><span class="loading"></span><span id="wecom-status">正在配置...</span></p>
+                    </div>
+                    
+                    <div id="wecom-result" class="result-box hidden">
+                        <h4 style="margin-bottom: 15px;">✅ 企微配置完成</h4>
+                        <div class="result-item">
+                            <span class="result-label">Agent ID</span>
+                            <span class="result-value" id="agent-id">-</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Webhook URL</span>
+                            <span class="result-value" id="webhook-url">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 步骤3: 微信二维码 -->
+        <div class="card hidden" id="step3-card">
+            <div class="step completed" id="step3">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <div class="step-title">扫码关注微信</div>
+                    <div class="step-desc">扫描下方二维码，关注企业微信公众号</div>
+                    
+                    <div class="wechat-qrcode">
+                        <img id="wechat-qrcode-img" src="" alt="微信二维码">
+                        <p style="margin-top: 15px; color: #28a745;">使用微信扫描上方二维码即可完成接入</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    
+
     <script>
-        let currentTaskId = null;
-        let pollInterval = null;
+        let feishuSessionId = null;
+        let pollTimer = null;
         
-        async function testConnection() {
-            const btn = event.target;
+        // 初始化飞书扫码
+        async function initFeishu() {
+            const btn = document.querySelector('#feishu-init button');
             btn.disabled = true;
-            btn.textContent = '测试中...';
+            btn.innerHTML = '<span class="loading"></span>获取中...';
             
             try {
-                const response = await fetch('/api/test-ssh', { method: 'POST' });
-                const result = await response.json();
-                alert(result.success ? '✅ SSH连接成功！' : '❌ ' + result.message);
-            } catch (error) {
-                alert('❌ 请求失败: ' + error.message);
-            } finally {
+                const resp = await fetch('/api/feishu/init', { method: 'POST' });
+                const data = await resp.json();
+                
+                if (data.success) {
+                    feishuSessionId = data.session_id;
+                    
+                    // 显示二维码
+                    document.getElementById('feishu-init').classList.add('hidden');
+                    document.getElementById('feishu-qrcode-section').classList.remove('hidden');
+                    
+                    // 生成二维码
+                    const qrContainer = document.getElementById('feishu-qrcode');
+                    qrContainer.innerHTML = '';
+                    QRCode.toCanvas(qrContainer, data.qr_content, {
+                        width: 200,
+                        margin: 2
+                    }, function(error) {
+                        if (error) {
+                            qrContainer.innerHTML = '<p style="color: red;">二维码生成失败</p>';
+                        }
+                    });
+                    
+                    // 开始轮询
+                    startPolling();
+                } else {
+                    alert('获取二维码失败: ' + data.error);
+                    btn.disabled = false;
+                    btn.innerHTML = '获取飞书二维码';
+                }
+            } catch (e) {
+                alert('请求失败: ' + e.message);
                 btn.disabled = false;
-                btn.textContent = '🔗 测试SSH连接';
+                btn.innerHTML = '获取飞书二维码';
             }
         }
         
-        async function startSetup() {
-            const btn = document.getElementById('startBtn');
-            const progress = document.getElementById('progressContainer');
-            const errorContainer = document.getElementById('errorContainer');
-            const qrcodeContainer = document.getElementById('qrcodeContainer');
-            const appName = document.getElementById('appName').value;
-            
+        // 轮询扫码状态
+        function startPolling() {
+            pollTimer = setInterval(async () => {
+                try {
+                    const resp = await fetch('/api/feishu/poll', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ session_id: feishuSessionId })
+                    });
+                    const data = await resp.json();
+                    
+                    const statusEl = document.getElementById('feishu-status');
+                    
+                    if (data.status === 'completed') {
+                        clearInterval(pollTimer);
+                        statusEl.textContent = '✅ 扫码成功！';
+                        
+                        // 显示结果
+                        document.getElementById('feishu-qrcode-section').classList.add('hidden');
+                        document.getElementById('feishu-result').classList.remove('hidden');
+                        document.getElementById('bot-name').textContent = data.bot_name || '-';
+                        document.getElementById('feishu-app-id').textContent = data.app_id || '-';
+                        
+                        // 更新步骤状态
+                        document.getElementById('step1').classList.remove('active');
+                        document.getElementById('step1').classList.add('completed');
+                        document.getElementById('step2').classList.add('active');
+                        document.getElementById('btn-wecom').disabled = false;
+                        
+                    } else if (data.status === 'scanned') {
+                        statusEl.textContent = '📱 已扫码，请在手机上确认...';
+                    } else if (data.status === 'expired') {
+                        clearInterval(pollTimer);
+                        statusEl.textContent = '⚠️ 二维码已过期';
+                        document.getElementById('feishu-init').classList.remove('hidden');
+                        document.getElementById('feishu-qrcode-section').classList.add('hidden');
+                        const btn = document.querySelector('#feishu-init button');
+                        btn.disabled = false;
+                        btn.innerHTML = '重新获取二维码';
+                    } else if (data.status === 'error') {
+                        statusEl.textContent = '❌ ' + data.message;
+                    }
+                } catch (e) {
+                    console.error('Poll error:', e);
+                }
+            }, 2000);
+        }
+        
+        // 开始企微配置
+        async function startWecomSetup() {
+            const btn = document.getElementById('btn-wecom');
             btn.disabled = true;
-            btn.textContent = '⏳ 配置中...';
-            progress.style.display = 'block';
-            errorContainer.style.display = 'none';
-            qrcodeContainer.style.display = 'none';
             
-            // 重置进度
-            for (let i = 0; i < 4; i++) {
-                document.getElementById('step' + i).className = 'progress-step pending';
-            }
+            document.getElementById('wecom-progress').classList.remove('hidden');
+            
+            const appName = document.getElementById('app-name').value || 'OpenClaw AI助手';
             
             try {
-                const response = await fetch('/api/start-setup', {
+                const resp = await fetch('/api/start-wecom-setup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ app_name: appName })
                 });
+                const data = await resp.json();
                 
-                const result = await response.json();
-                currentTaskId = result.task_id;
-                
-                // 开始轮询任务状态
-                pollInterval = setInterval(pollTaskStatus, 1000);
-                
-            } catch (error) {
-                showError('请求失败: ' + error.message);
-                btn.disabled = false;
-                btn.textContent = '🚀 开始配置';
-            }
-        }
-        
-        async function pollTaskStatus() {
-            if (!currentTaskId) return;
-            
-            try {
-                const response = await fetch('/api/task/' + currentTaskId);
-                const task = await response.json();
-                
-                // 更新进度UI
-                updateProgress(task);
-                
-                if (task.status === 'completed') {
-                    clearInterval(pollInterval);
-                    showQRCode(task.result);
-                    document.getElementById('startBtn').textContent = '✅ 配置完成';
-                } else if (task.status === 'failed') {
-                    clearInterval(pollInterval);
-                    showError(task.error);
-                    document.getElementById('startBtn').disabled = false;
-                    document.getElementById('startBtn').textContent = '🔄 重试';
+                if (data.task_id) {
+                    checkWecomTask(data.task_id);
+                } else {
+                    document.getElementById('wecom-status').textContent = '❌ ' + (data.error || '启动失败');
                 }
-            } catch (error) {
-                console.error('轮询失败:', error);
+            } catch (e) {
+                document.getElementById('wecom-status').textContent = '❌ ' + e.message;
             }
         }
         
-        function updateProgress(task) {
-            const steps = task.steps || [];
+        // 检查企微配置任务状态
+        async function checkWecomTask(taskId) {
+            const statusEl = document.getElementById('wecom-status');
             
-            steps.forEach((step, index) => {
-                const el = document.getElementById('step' + index);
-                if (el) {
-                    el.className = 'progress-step ' + step.status;
+            const timer = setInterval(async () => {
+                try {
+                    const resp = await fetch('/api/task/' + taskId);
+                    const data = await resp.json();
+                    
+                    if (data.status === 'completed') {
+                        clearInterval(timer);
+                        statusEl.textContent = '✅ 配置完成';
+                        
+                        document.getElementById('wecom-progress').classList.add('hidden');
+                        document.getElementById('wecom-result').classList.remove('hidden');
+                        document.getElementById('agent-id').textContent = data.result.agent_id || '-';
+                        document.getElementById('webhook-url').textContent = data.result.webhook_url || '-';
+                        
+                        // 更新步骤状态
+                        document.getElementById('step2').classList.remove('active');
+                        document.getElementById('step2').classList.add('completed');
+                        
+                        // 显示微信二维码
+                        if (data.result.wechat_qrcode_url) {
+                            document.getElementById('step3-card').classList.remove('hidden');
+                            document.getElementById('wechat-qrcode-img').src = data.result.wechat_qrcode_url;
+                        }
+                        
+                    } else if (data.status === 'failed') {
+                        clearInterval(timer);
+                        statusEl.textContent = '❌ ' + data.error;
+                    } else {
+                        // 显示当前步骤
+                        const currentStep = data.steps.find(s => s.status === 'running');
+                        if (currentStep) {
+                            statusEl.textContent = currentStep.name + '...';
+                        }
+                    }
+                } catch (e) {
+                    console.error('Check task error:', e);
                 }
-            });
-        }
-        
-        function showError(message) {
-            const container = document.getElementById('errorContainer');
-            const msg = document.getElementById('errorMessage');
-            msg.textContent = message;
-            container.style.display = 'block';
-        }
-        
-        function showQRCode(result) {
-            const container = document.getElementById('qrcodeContainer');
-            const img = document.getElementById('wechatQrcode');
-            
-            if (result.wechat_qrcode_url) {
-                img.src = result.wechat_qrcode_url;
-            } else {
-                img.style.display = 'none';
-            }
-            
-            // 填充结果信息
-            document.getElementById('resultCorpId').textContent = result.corp_id || '-';
-            document.getElementById('resultAgentId').textContent = result.agent_id || '-';
-            document.getElementById('resultPublicIp').textContent = result.public_ip || '-';
-            document.getElementById('resultWebhook').textContent = result.webhook_url || '-';
-            
-            container.style.display = 'block';
+            }, 1500);
         }
     </script>
 </body>
