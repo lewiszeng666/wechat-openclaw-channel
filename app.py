@@ -74,12 +74,13 @@ def feishu_init():
     
     try:
         # 调用 feishu_bot.py init
+        # 首次运行可能需要安装 Chromium，超时设为 180 秒
         result = subprocess.run(
             ['python3', 'feishu_bot.py', 'init'],
             capture_output=True,
             text=True,
-            timeout=60,
-            cwd=os.path.dirname(__file__)
+            timeout=180,
+            cwd=os.path.dirname(__file__) or '.'
         )
         
         if result.returncode != 0:
