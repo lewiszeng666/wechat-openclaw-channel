@@ -241,6 +241,63 @@ def _gen_bot_name() -> str:
     return f"OpenClaw机器人-{random.randint(1000, 9999)}"
 
 
+def _send_test_message(app_id: str, app_secret: str, open_id: str) -> bool:
+    """向用户发送测试消息，检测是否为 OpenClaw 机器人后端。"""
+    import ssl
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    
+    # 获取 tenant_access_token
+    payload = json.dumps({"app_id": app_id, "app_secret": app_secret}).encode()
+    req = urllib.request.Request(
+        "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal",
+        data=payload,
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, context=ctx, timeout=10) as resp:
+            token_data = json.loads(resp.read())
+    except Exception as e:
+        _log(f"    [测试消息] 获取 token 失败: {e}")
+        return False
+    
+    token = token_data.get("tenant_access_token")
+    if not token:
+        _log(f"    [测试消息] token 为空: {token_data}")
+        return False
+    
+    # 发送测试消息
+    msg_payload = json.dumps({
+        "receive_id": open_id,
+        "msg_type": "text",
+        "content": json.dumps({"text": "ping"})
+    }).encode()
+    
+    req2 = urllib.request.Request(
+        "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id",
+        data=msg_payload,
+        headers={
+            "Content-Type": "application/json; charset=utf-8",
+            "Authorization": f"Bearer {token}",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req2, context=ctx, timeout=10) as resp:
+            result = json.loads(resp.read())
+        if result.get("code") == 0:
+            _log(f"    [测试消息] 发送成功，机器人可用")
+            return True
+        else:
+            _log(f"    [测试消息] 发送失败: {result}")
+            return False
+    except Exception as e:
+        _log(f"    [测试消息] 发送异常: {e}")
+        return False
+
+
 def _find_existing_openclaw_bot(creator: "FeishuBotCreator") -> Optional[dict]:
     """
     查找已存在的、已配置好的 OpenClaw 机器人。
@@ -339,13 +396,11 @@ def _find_existing_openclaw_bot(creator: "FeishuBotCreator") -> Optional[dict]:
         
         _log(f"    [候选] 可用: {app_name} (app_id={app_id})")
         
-        # 计算优先级：名称包含 openclaw 的优先
+        # 计算优先级：名称包含 openclaw 的最优先
         priority = 0
         name_lower = app_name.lower()
         if "openclaw" in name_lower:
             priority = 2
-        elif "lewis" in name_lower:
-            priority = 1
         
         candidates.append({
             "app_id": app_id,
@@ -1194,33 +1249,21 @@ def cmd_poll():
 
     # ---- 检查是否已存在可用的 OpenClaw 机器人 ----
     existing_bot = _find_existing_openclaw_bot(creator)
-    if existing_bot:
-        _log(f"[复用] 找到已存在的 OpenClaw 机器人: {existing_bot['name']} (app_id={existing_bot['app_id']})")
-        creator.app_id = existing_bot["app_id"]
-        creator.app_secret = existing_bot["app_secret"]
-        _log(f"[复用] 已获取凭证: app_id={creator.app_id}, app_secret={creator.app_secret[:10]}...")
-
     if not existing_bot:
-        # ---- 自动执行 create ----
-        _log("[poll] 未找到可复用的机器人，创建新应用 ...")
-
-        bot_name = _gen_bot_name()
-        bot_desc = bot_name
-        avatar_path = _download_avatar()
-
-        if not creator.step1_create_app(bot_name, bot_desc, avatar_path):
-            _kill_cdp_browser(); pw.stop()
-            _output_json({"status": "error", "message": "创建应用失败", "logs": _log_buffer[-20:]})
-            sys.exit(1)
-
-        if not creator.step2_get_credentials():
-            _kill_cdp_browser(); pw.stop()
-            _output_json({"status": "error", "message": "获取凭证失败", "logs": _log_buffer[-20:]})
-            sys.exit(1)
-
-        _log(f"[create] 完成: app_id={creator.app_id}")
-    else:
-        bot_name = existing_bot["name"]
+        # 找不到机器人，直接报错，不创建新应用
+        _kill_cdp_browser(); pw.stop()
+        _output_json({
+            "status": "error", 
+            "message": "未找到可用的 OpenClaw 机器人。请先在飞书开放平台创建一个机器人应用并配置好 OpenClaw 后端。",
+            "logs": _log_buffer[-30:]
+        })
+        sys.exit(1)
+    
+    _log(f"[复用] 找到已存在的机器人: {existing_bot['name']} (app_id={existing_bot['app_id']})")
+    creator.app_id = existing_bot["app_id"]
+    creator.app_secret = existing_bot["app_secret"]
+    bot_name = existing_bot["name"]
+    _log(f"[复用] 已获取凭证: app_id={creator.app_id}, app_secret={creator.app_secret[:10]}...")
 
     # ---- 写入 openclaw 配置，让服务建立长连接 ----
     _log("[配置] 写入 openclaw.json，等待服务建立长连接 ...")
@@ -1233,25 +1276,8 @@ def cmd_poll():
     _log("[配置] 等待 2s 让 openclaw 服务读取配置 ...")
     time.sleep(2)
 
-    # ---- 自动执行 apply (仅新创建的应用需要) ----
-    if not existing_bot:
-        _log("[apply] 开始添加能力/事件/权限/发布 ...")
-
-        steps = [
-            creator.step3_add_bot,
-            creator.step4_event_mode,
-            creator.step5_add_event,
-            creator.step6_callback_mode,
-            creator.step7_permissions,
-            creator.step8_publish,
-        ]
-        for fn in steps:
-            if not fn():
-                _kill_cdp_browser(); pw.stop()
-                _output_json({"status": "error", "message": f"{fn.__name__} 失败"})
-                sys.exit(1)
-    else:
-        _log("[复用] 已有应用无需重新配置，跳过 apply 步骤")
+    # ---- 已有应用无需重新配置，跳过 apply 步骤 ----
+    _log("[复用] 已有应用无需重新配置，跳过 apply 步骤")
 
     open_id = creator.step9_get_owner_open_id()
 
@@ -1270,10 +1296,8 @@ def cmd_poll():
         "app_id": creator.app_id,
         "app_secret": creator.app_secret,
         "bot_name": bot_name,
-        "version_id": creator.version_id,
         "open_id": open_id,
         "manage_url": f"{BASE_URL}/app/{creator.app_id}",
-        "reused": existing_bot is not None,  # 标识是复用还是新创建
     }
 
     _save_state({"phase": "done", **result})
