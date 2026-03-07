@@ -278,9 +278,14 @@ def _find_existing_openclaw_bot(creator: "FeishuBotCreator") -> Optional[dict]:
         
         _log(f"  检查应用: {app_name} (app_id={app_id}, status={app_status})")
         
+        # 跳过空 app_id
+        if not app_id:
+            _log(f"    [跳过] app_id 为空")
+            continue
+        
         # 检查是否有机器人能力
         detail = creator._get(f"{API_BASE}/app/{app_id}")
-        if not detail or detail.get("code") != 0:
+        if not detail or detail.get("code") not in (0, 10000):
             _log(f"    [跳过] 无法获取应用详情")
             continue
         
@@ -541,8 +546,10 @@ class FeishuBotCreator:
     def _ok(self, body: Optional[dict], step: str) -> Optional[dict]:
         if body is None:
             return None
-        if body.get("code") != 0:
-            _log(f"  [失败] {step}: code={body.get('code')}, msg={body.get('msg')}")
+        code = body.get("code")
+        # 飞书 API 返回 code=0 或 code=10000 都表示成功
+        if code not in (0, 10000):
+            _log(f"  [失败] {step}: code={code}, msg={body.get('msg')}")
             return None
         _log(f"  [成功] {step}")
         return body
