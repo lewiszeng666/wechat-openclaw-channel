@@ -214,8 +214,9 @@ POLL_INTERVAL = 2
 
 AVATAR_URL = "https://90-1251810746.cos.ap-guangzhou.myqcloud.com/ico.png"
 
-OPENCLAW_CONFIG = "/root/.openclaw/openclaw.json"
-OPENCLAW_ALLOW_FROM = "/root/.openclaw/credentials/feishu-default-allowFrom.json"
+# 配置路径：优先使用环境变量，否则使用默认路径
+OPENCLAW_CONFIG = os.environ.get("OPENCLAW_CONFIG", "/root/.openclaw/openclaw.json")
+OPENCLAW_ALLOW_FROM = os.environ.get("OPENCLAW_ALLOW_FROM", "/root/.openclaw/credentials/feishu-default-allowFrom.json")
 WEBSOCKET_POLL_INTERVAL = 3   # 轮询长连接状态的间隔 (秒)
 WEBSOCKET_POLL_TIMEOUT = 60   # 等待长连接建立的最大时间 (秒)
 
@@ -337,7 +338,7 @@ def _find_existing_openclaw_bot(creator: "FeishuBotCreator") -> Optional[dict]:
         
         # 获取 app_id - 遍历所有可能的字段
         app_id = None
-        for key in ["clientId", "appId", "app_id", "client_id", "id", "ClientID", "AppID"]:
+        for key in ["appID", "clientId", "appId", "app_id", "client_id", "id", "ClientID", "AppID"]:
             if app.get(key):
                 app_id = app.get(key)
                 _log(f"  应用 '{app_name}' 的 app_id 字段名是: {key} = {app_id}")
@@ -349,7 +350,21 @@ def _find_existing_openclaw_bot(creator: "FeishuBotCreator") -> Optional[dict]:
         
         app_status = app.get("appStatus", app.get("app_status", 0))
         
-        _log(f"  检查应用: {app_name} (app_id={app_id}, status={app_status})")
+        # 先从应用列表检查机器人能力（ability 字段）
+        list_ability = app.get("ability", [])
+        has_bot_in_list = False
+        if isinstance(list_ability, list):
+            for ab in list_ability:
+                if isinstance(ab, str) and ("robot" in ab.lower() or "bot" in ab.lower()):
+                    has_bot_in_list = True
+                    break
+                elif isinstance(ab, dict):
+                    ab_id = ab.get("abilityId") or ab.get("ability_id") or ab.get("type") or ab.get("id") or ""
+                    if "robot" in str(ab_id).lower() or "bot" in str(ab_id).lower():
+                        has_bot_in_list = True
+                        break
+        
+        _log(f"  检查应用: {app_name} (app_id={app_id}, status={app_status}, ability={list_ability})")
         
         # 获取应用详情
         detail = creator._get(f"{API_BASE}/app/{app_id}")
@@ -358,20 +373,22 @@ def _find_existing_openclaw_bot(creator: "FeishuBotCreator") -> Optional[dict]:
             continue
         
         app_data = detail.get("data", {})
+        _log(f"    应用详情字段: {list(app_data.keys())}")
         
         # 检查是否有机器人能力
         abilities = app_data.get("abilities", [])
         has_bot = False
         for ab in abilities:
-            ab_id = ab.get("abilityId") or ab.get("ability_id") or ab.get("type") or ""
-            if "robot" in ab_id.lower() or "bot" in ab_id.lower():
+            ab_id = ab.get("abilityId") or ab.get("ability_id") or ab.get("type") or ab.get("id") or ""
+            if "robot" in str(ab_id).lower() or "bot" in str(ab_id).lower():
                 has_bot = True
                 break
         
         robot_enabled = app_data.get("robotEnabled", False) or app_data.get("robot_enabled", False)
         
-        if not has_bot and not robot_enabled:
-            _log(f"    [跳过] 没有机器人能力")
+        # 综合判断：列表里有、详情里有、或 robotEnabled 为 True
+        if not has_bot and not robot_enabled and not has_bot_in_list:
+            _log(f"    [跳过] 没有机器人能力 (abilities={abilities}, robotEnabled={robot_enabled})")
             continue
         
         # 检查应用状态
@@ -1265,27 +1282,8 @@ def cmd_poll():
     bot_name = existing_bot["name"]
     _log(f"[复用] 已获取凭证: app_id={creator.app_id}, app_secret={creator.app_secret[:10]}...")
 
-    # ---- 写入 openclaw 配置，让服务建立长连接 ----
-    _log("[配置] 写入 openclaw.json，等待服务建立长连接 ...")
-    if not _write_openclaw_config(creator.app_id, creator.app_secret):
-        _kill_cdp_browser(); pw.stop()
-        _output_json({"status": "error", "message": "写入 openclaw 配置失败"})
-        sys.exit(1)
-
-    # 等待 2 秒让 openclaw 服务读取新配置并建立 WebSocket 连接
-    _log("[配置] 等待 2s 让 openclaw 服务读取配置 ...")
-    time.sleep(2)
-
-    # ---- 已有应用无需重新配置，跳过 apply 步骤 ----
-    _log("[复用] 已有应用无需重新配置，跳过 apply 步骤")
-
+    # 获取用户 open_id（用于后续发送消息）
     open_id = creator.step9_get_owner_open_id()
-
-    # ---- 写入 allowFrom 配置 ----
-    if open_id:
-        _write_allow_from(open_id)
-    else:
-        _log("[警告] 未获取到 open_id，跳过 allowFrom 写入")
 
     # 全部完成，关闭浏览器
     _kill_cdp_browser()
