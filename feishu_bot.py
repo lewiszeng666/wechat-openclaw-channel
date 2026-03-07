@@ -243,21 +243,21 @@ def _gen_bot_name() -> str:
 
 def _find_existing_openclaw_bot(creator: "FeishuBotCreator") -> Optional[dict]:
     """
-    检查是否已存在可用的 OpenClaw 机器人。
+    查找已存在的、已配置好的 OpenClaw 机器人。
     
-    条件:
-    1. 应用名称包含 "OpenClaw" 或 "openclaw"
-    2. 应用已启用 (appStatus >= 1)
-    3. 应用有机器人能力
+    策略：
+    1. 获取所有应用列表
+    2. 找到有机器人能力、已上线、且能获取到 app_secret 的应用
+    3. 优先匹配名称包含 "openclaw" 的应用
     
-    返回: {"app_id": str, "name": str} 或 None
+    返回: {"app_id": str, "app_secret": str, "name": str} 或 None
     """
     _log("[检查] 查找已存在的 OpenClaw 机器人...")
     
     # 获取应用列表
     body = creator._get(f"{API_BASE}/app/list?page=1&page_size=50")
-    if not body or body.get("code") != 0:
-        _log("  [跳过] 无法获取应用列表")
+    if not body or body.get("code") not in (0, 10000):
+        _log(f"  [跳过] 无法获取应用列表: {body}")
         return None
     
     apps = body.get("data", {}).get("apps", [])
@@ -265,65 +265,104 @@ def _find_existing_openclaw_bot(creator: "FeishuBotCreator") -> Optional[dict]:
         _log("  [跳过] 没有已创建的应用")
         return None
     
-    _log(f"  找到 {len(apps)} 个应用，开始筛选...")
+    _log(f"  找到 {len(apps)} 个应用")
+    
+    # 第一次遍历：打印所有应用的完整信息（调试用）
+    _log(f"  应用列表原始数据:")
+    for i, app in enumerate(apps):
+        _log(f"    [{i}] {json.dumps(app, ensure_ascii=False)[:200]}")
+    
+    candidates = []  # 候选列表
     
     for app in apps:
-        app_name = app.get("name", "") or app.get("appName", "")
-        # 尝试多种可能的 app_id 字段名
-        app_id = (app.get("clientId") or app.get("appId") or app.get("app_id") 
-                  or app.get("client_id") or app.get("id") or "")
-        app_status = app.get("appStatus", app.get("app_status", 0))  # 1=已上线, 0=开发中
+        # 获取应用名称
+        app_name = app.get("name", "") or app.get("appName", "") or app.get("app_name", "")
         
-        # 调试：打印原始应用数据（首次）
-        _log(f"  应用原始数据: {list(app.keys())}")
+        # 获取 app_id - 遍历所有可能的字段
+        app_id = None
+        for key in ["clientId", "appId", "app_id", "client_id", "id", "ClientID", "AppID"]:
+            if app.get(key):
+                app_id = app.get(key)
+                _log(f"  应用 '{app_name}' 的 app_id 字段名是: {key} = {app_id}")
+                break
         
-        # 检查名称是否包含 OpenClaw（放宽条件，也检查 lewis-openclaw）
-        name_lower = app_name.lower()
-        if "openclaw" not in name_lower and "lewis" not in name_lower:
+        if not app_id:
+            _log(f"  应用 '{app_name}' 没有找到 app_id 字段，可用字段: {list(app.keys())}")
             continue
+        
+        app_status = app.get("appStatus", app.get("app_status", 0))
         
         _log(f"  检查应用: {app_name} (app_id={app_id}, status={app_status})")
         
-        # 跳过空 app_id
-        if not app_id:
-            _log(f"    [跳过] app_id 为空")
-            continue
-        
-        # 检查是否有机器人能力
+        # 获取应用详情
         detail = creator._get(f"{API_BASE}/app/{app_id}")
         if not detail or detail.get("code") not in (0, 10000):
             _log(f"    [跳过] 无法获取应用详情")
             continue
         
         app_data = detail.get("data", {})
-        abilities = app_data.get("abilities", [])
-        has_bot = any(
-            ab.get("abilityId") == "robot" or ab.get("ability_id") == "robot" or ab.get("type") == "bot"
-            for ab in abilities
-        ) if abilities else False
         
-        # 也检查 robotEnabled 字段
+        # 检查是否有机器人能力
+        abilities = app_data.get("abilities", [])
+        has_bot = False
+        for ab in abilities:
+            ab_id = ab.get("abilityId") or ab.get("ability_id") or ab.get("type") or ""
+            if "robot" in ab_id.lower() or "bot" in ab_id.lower():
+                has_bot = True
+                break
+        
         robot_enabled = app_data.get("robotEnabled", False) or app_data.get("robot_enabled", False)
         
         if not has_bot and not robot_enabled:
-            _log(f"    [跳过] 没有机器人能力 (abilities={abilities})")
+            _log(f"    [跳过] 没有机器人能力")
             continue
         
-        # 检查应用状态 (status: 0=开发中, 1=已上线, 2=已发布)
+        # 检查应用状态
         actual_status = app_data.get("appStatus", app_data.get("app_status", app_status))
-        # 放宽条件：status >= 1 都可以用（1=上线, 2=发布）
         if actual_status < 1:
             _log(f"    [跳过] 应用未上线 (status={actual_status})")
             continue
         
-        _log(f"    [匹配] 找到可用的 OpenClaw 机器人!")
-        return {
+        # 尝试获取 app_secret
+        secret_body = creator._get(f"{API_BASE}/secret/{app_id}")
+        if not secret_body or secret_body.get("code") not in (0, 10000):
+            _log(f"    [跳过] 无法获取 app_secret")
+            continue
+        
+        secret_data = secret_body.get("data", {})
+        app_secret = (secret_data.get("appSecret") or secret_data.get("app_secret") 
+                      or secret_data.get("secret") or secret_data.get("AppSecret"))
+        
+        if not app_secret:
+            _log(f"    [跳过] app_secret 为空")
+            continue
+        
+        _log(f"    [候选] 可用: {app_name} (app_id={app_id})")
+        
+        # 计算优先级：名称包含 openclaw 的优先
+        priority = 0
+        name_lower = app_name.lower()
+        if "openclaw" in name_lower:
+            priority = 2
+        elif "lewis" in name_lower:
+            priority = 1
+        
+        candidates.append({
             "app_id": app_id,
+            "app_secret": app_secret,
             "name": app_name,
-        }
+            "priority": priority,
+        })
     
-    _log("  [结果] 未找到可复用的 OpenClaw 机器人")
-    return None
+    if not candidates:
+        _log("  [结果] 未找到可复用的机器人")
+        return None
+    
+    # 按优先级排序，选择最优的
+    candidates.sort(key=lambda x: x["priority"], reverse=True)
+    best = candidates[0]
+    _log(f"  [匹配] 选择机器人: {best['name']} (app_id={best['app_id']})")
+    return best
 
 
 # ============================================================
@@ -1158,13 +1197,8 @@ def cmd_poll():
     if existing_bot:
         _log(f"[复用] 找到已存在的 OpenClaw 机器人: {existing_bot['name']} (app_id={existing_bot['app_id']})")
         creator.app_id = existing_bot["app_id"]
-        
-        # 获取 app_secret
-        if not creator.step2_get_credentials():
-            _log("[警告] 无法获取已有应用的凭证，尝试创建新应用")
-            existing_bot = None
-        else:
-            _log(f"[复用] 已获取凭证: app_id={creator.app_id}")
+        creator.app_secret = existing_bot["app_secret"]
+        _log(f"[复用] 已获取凭证: app_id={creator.app_id}, app_secret={creator.app_secret[:10]}...")
 
     if not existing_bot:
         # ---- 自动执行 create ----
