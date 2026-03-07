@@ -25,8 +25,10 @@ import platform
 
 # 对于 init 和 poll 命令，立即抑制所有 stderr 输出，避免污染 JSON 响应
 if len(sys.argv) > 1 and sys.argv[1] in ("init", "poll"):
-    sys.stderr = open(os.devnull, "w")
-    os.dup2(os.open(os.devnull, os.O_WRONLY), 2)
+    _devnull = open(os.devnull, "w")
+    sys.stderr = _devnull
+    # 同时重定向底层 fd 2，防止子进程输出
+    os.dup2(_devnull.fileno(), 2)
 
 _REQUIRED_PACKAGES = [("playwright", "playwright")]
 
@@ -247,18 +249,18 @@ def _save_state(data: dict) -> None:
         json.dump(data, f, ensure_ascii=False)
 
 
+def _output_json(data: dict) -> None:
+    """输出 JSON 到 stdout 并 flush，确保不被缓冲"""
+    sys.stdout.write(json.dumps(data) + "\n")
+    sys.stdout.flush()
+
+
 def _load_state() -> dict:
     if not os.path.isfile(STATE_FILE):
         _output_json({"status": "error", "message": "状态文件不存在，请先运行 init"})
         sys.exit(1)
     with open(STATE_FILE) as f:
         return json.load(f)
-
-
-def _output_json(data: dict) -> None:
-    """输出 JSON 到 stdout 并 flush，确保不被缓冲"""
-    sys.stdout.write(json.dumps(data) + "\n")
-    sys.stdout.flush()
 
 
 def _log(msg: str) -> None:
@@ -1169,3 +1171,7 @@ def main():
     else:
         _output_json({"status": "error", "message": f"未知命令: {cmd}"})
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
