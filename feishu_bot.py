@@ -249,10 +249,16 @@ def _save_state(data: dict) -> None:
 
 def _load_state() -> dict:
     if not os.path.isfile(STATE_FILE):
-        print(json.dumps({"status": "error", "message": "状态文件不存在，请先运行 init"}))
+        _output_json({"status": "error", "message": "状态文件不存在，请先运行 init"})
         sys.exit(1)
     with open(STATE_FILE) as f:
         return json.load(f)
+
+
+def _output_json(data: dict) -> None:
+    """输出 JSON 到 stdout 并 flush，确保不被缓冲"""
+    sys.stdout.write(json.dumps(data) + "\n")
+    sys.stdout.flush()
 
 
 def _log(msg: str) -> None:
@@ -865,7 +871,7 @@ def cmd_init():
             os.kill(chrome_pid, signal.SIGKILL)
         except OSError:
             pass
-        print(json.dumps({"status": "error", "message": "Chromium 启动超时"}))
+        _output_json({"status": "error", "message": "Chromium 启动超时"})
         sys.exit(1)
 
     _log("[init] CDP 端口就绪，通过 Playwright 连接获取二维码 token...")
@@ -881,7 +887,7 @@ def cmd_init():
             os.kill(chrome_pid, signal.SIGKILL)
         except OSError:
             pass
-        print(json.dumps({"status": "error", "message": f"连接 Chromium 失败: {e}"}))
+        _output_json({"status": "error", "message": f"连接 Chromium 失败: {e}"})
         sys.exit(1)
 
     # 获取页面 (Chromium 启动时加载的是 about:blank)
@@ -927,7 +933,7 @@ def cmd_init():
             os.kill(chrome_pid, signal.SIGKILL)
         except OSError:
             pass
-        print(json.dumps({"status": "error", "message": "未能获取二维码 token"}))
+        _output_json({"status": "error", "message": "未能获取二维码 token"})
         sys.exit(1)
 
     qr_content = json.dumps({"qrlogin": {"token": state["qr_token"]}})
@@ -961,13 +967,13 @@ def cmd_poll():
     data = _load_state()
 
     if data.get("phase") not in ("init",):
-        print(json.dumps({"status": "error", "message": f"当前阶段为 {data.get('phase')}，请先运行 init"}))
+        _output_json({"status": "error", "message": f"当前阶段为 {data.get('phase')}，请先运行 init"})
         sys.exit(1)
 
     deadline = data.get("deadline", 0)
     if time.time() > deadline:
         _kill_cdp_browser()
-        print(json.dumps({"status": "expired", "message": "二维码已过期，请重新 init"}))
+        _output_json({"status": "expired", "message": "二维码已过期，请重新 init"})
         sys.exit(1)
 
     from playwright.sync_api import sync_playwright
@@ -982,7 +988,7 @@ def cmd_poll():
         browser = pw.chromium.connect_over_cdp(cdp_url)
     except Exception as e:
         pw.stop()
-        print(json.dumps({"status": "error", "message": f"无法连接浏览器 (是否已运行 init?): {e}"}))
+        _output_json({"status": "error", "message": f"无法连接浏览器 (是否已运行 init?): {e}"})
         sys.exit(1)
 
     # 获取 init 创建的页面
@@ -990,7 +996,7 @@ def cmd_poll():
     if not contexts or not contexts[0].pages:
         browser.close()
         pw.stop()
-        print(json.dumps({"status": "error", "message": "浏览器中没有页面，请重新 init"}))
+        _output_json({"status": "error", "message": "浏览器中没有页面，请重新 init"})
         sys.exit(1)
 
     page = contexts[0].pages[0]
@@ -1034,9 +1040,9 @@ def cmd_poll():
         # 不关闭浏览器，让用户可以继续 poll
         pw.stop()  # 断开 CDP 连接但不杀浏览器
         if state["scanned"]:
-            print(json.dumps({"status": "scanned", "message": "已扫码，等待确认"}))
+            _output_json({"status": "scanned", "message": "已扫码，等待确认"})
             sys.exit(2)
-        print(json.dumps({"status": "pending", "message": "等待扫码"}))
+        _output_json({"status": "pending", "message": "等待扫码"})
         sys.exit(2)
 
     # ---- 登录成功！确保在开放平台 ----
@@ -1063,12 +1069,12 @@ def cmd_poll():
 
     if not creator.step1_create_app(bot_name, bot_desc, avatar_path):
         _kill_cdp_browser(); pw.stop()
-        print(json.dumps({"status": "error", "message": "创建应用失败"}))
+        _output_json({"status": "error", "message": "创建应用失败"})
         sys.exit(1)
 
     if not creator.step2_get_credentials():
         _kill_cdp_browser(); pw.stop()
-        print(json.dumps({"status": "error", "message": "获取凭证失败"}))
+        _output_json({"status": "error", "message": "获取凭证失败"})
         sys.exit(1)
 
     _log(f"[create] 完成: app_id={creator.app_id}")
@@ -1077,7 +1083,7 @@ def cmd_poll():
     _log("[配置] 写入 openclaw.json，等待服务建立长连接 ...")
     if not _write_openclaw_config(creator.app_id, creator.app_secret):
         _kill_cdp_browser(); pw.stop()
-        print(json.dumps({"status": "error", "message": "写入 openclaw 配置失败"}))
+        _output_json({"status": "error", "message": "写入 openclaw 配置失败"})
         sys.exit(1)
 
     # 等待 2 秒让 openclaw 服务读取新配置并建立 WebSocket 连接
@@ -1098,7 +1104,7 @@ def cmd_poll():
     for fn in steps:
         if not fn():
             _kill_cdp_browser(); pw.stop()
-            print(json.dumps({"status": "error", "message": f"{fn.__name__} 失败"}))
+            _output_json({"status": "error", "message": f"{fn.__name__} 失败"})
             sys.exit(1)
 
     open_id = creator.step9_get_owner_open_id()
@@ -1124,7 +1130,8 @@ def cmd_poll():
     }
 
     _save_state({"phase": "done", **result})
-    print(json.dumps(result, ensure_ascii=False))
+    sys.stdout.write(json.dumps(result, ensure_ascii=False) + "\n")
+    sys.stdout.flush()
 
 
 # ============================================================
@@ -1134,7 +1141,7 @@ def cmd_cleanup():
     _kill_cdp_browser()
     if os.path.isfile(STATE_FILE):
         os.remove(STATE_FILE)
-    print(json.dumps({"status": "ok", "message": "已清理"}))
+    _output_json({"status": "ok", "message": "已清理"})
 
 
 # ============================================================
@@ -1160,5 +1167,5 @@ def main():
     elif cmd == "cleanup":
         cmd_cleanup()
     else:
-        print(json.dumps({"status": "error", "message": f"未知命令: {cmd}"}))
+        _output_json({"status": "error", "message": f"未知命令: {cmd}"})
         sys.exit(1)
