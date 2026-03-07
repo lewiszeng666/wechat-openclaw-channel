@@ -269,11 +269,17 @@ def _find_existing_openclaw_bot(creator: "FeishuBotCreator") -> Optional[dict]:
     
     for app in apps:
         app_name = app.get("name", "") or app.get("appName", "")
-        app_id = app.get("clientId") or app.get("appId") or app.get("app_id", "")
-        app_status = app.get("appStatus", 0)  # 1=已上线, 0=开发中
+        # 尝试多种可能的 app_id 字段名
+        app_id = (app.get("clientId") or app.get("appId") or app.get("app_id") 
+                  or app.get("client_id") or app.get("id") or "")
+        app_status = app.get("appStatus", app.get("app_status", 0))  # 1=已上线, 0=开发中
         
-        # 检查名称是否包含 OpenClaw
-        if "openclaw" not in app_name.lower():
+        # 调试：打印原始应用数据（首次）
+        _log(f"  应用原始数据: {list(app.keys())}")
+        
+        # 检查名称是否包含 OpenClaw（放宽条件，也检查 lewis-openclaw）
+        name_lower = app_name.lower()
+        if "openclaw" not in name_lower and "lewis" not in name_lower:
             continue
         
         _log(f"  检查应用: {app_name} (app_id={app_id}, status={app_status})")
@@ -303,8 +309,9 @@ def _find_existing_openclaw_bot(creator: "FeishuBotCreator") -> Optional[dict]:
             _log(f"    [跳过] 没有机器人能力 (abilities={abilities})")
             continue
         
-        # 检查应用状态
-        actual_status = app_data.get("appStatus", app_status)
+        # 检查应用状态 (status: 0=开发中, 1=已上线, 2=已发布)
+        actual_status = app_data.get("appStatus", app_data.get("app_status", app_status))
+        # 放宽条件：status >= 1 都可以用（1=上线, 2=发布）
         if actual_status < 1:
             _log(f"    [跳过] 应用未上线 (status={actual_status})")
             continue
