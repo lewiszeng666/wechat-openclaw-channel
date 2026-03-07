@@ -19,6 +19,44 @@ class WeComAutomation:
         self.cookie_mgr = WeComCookieManager(corp_id, cookie_dir)
         self.base_url = "https://work.weixin.qq.com"
     
+    def _find_chrome_path(self) -> str:
+        """查找系统安装的 Chrome 路径"""
+        import platform
+        import shutil
+        import os
+        
+        system = platform.system()
+        
+        if system == "Linux":
+            # Ubuntu/Linux 常见路径
+            paths = [
+                "/usr/bin/google-chrome",
+                "/usr/bin/google-chrome-stable",
+                "/usr/bin/chromium-browser",
+                "/usr/bin/chromium",
+                "/snap/bin/chromium",
+            ]
+        elif system == "Darwin":
+            # macOS
+            paths = [
+                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            ]
+        elif system == "Windows":
+            paths = [
+                r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            ]
+        else:
+            paths = []
+        
+        for path in paths:
+            if os.path.exists(path):
+                return path
+        
+        # 尝试 which
+        found = shutil.which("google-chrome") or shutil.which("chromium")
+        return found or ""
+    
     def _check_login_status(self, page: Page) -> bool:
         """检查是否登录成功"""
         return "loginpage" not in page.url and "frame" in page.url
@@ -62,7 +100,15 @@ class WeComAutomation:
         }
         
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            # 使用系统安装的 Chrome（Ubuntu 服务器）
+            chrome_path = self._find_chrome_path()
+            launch_args = {'headless': True}
+            
+            if chrome_path:
+                print(f"使用系统 Chrome: {chrome_path}")
+                launch_args['executable_path'] = chrome_path
+            
+            browser = p.chromium.launch(**launch_args)
             context = browser.new_context()
             
             # 加载Cookie
