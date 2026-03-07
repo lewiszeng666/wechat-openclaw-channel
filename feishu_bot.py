@@ -20,8 +20,43 @@ import importlib.util
 import os
 import subprocess
 import sys
+import shutil
+import platform
 
 _REQUIRED_PACKAGES = [("playwright", "playwright")]
+
+
+def _find_system_chrome() -> str:
+    """查找系统安装的 Chrome/Chromium 路径"""
+    system = platform.system()
+    
+    if system == "Linux":
+        paths = [
+            "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
+            "/usr/bin/chromium-browser",
+            "/usr/bin/chromium",
+            "/snap/bin/chromium",
+        ]
+    elif system == "Darwin":
+        paths = [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        ]
+    elif system == "Windows":
+        paths = [
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        ]
+    else:
+        paths = []
+    
+    for path in paths:
+        if os.path.isfile(path):
+            return path
+    
+    # 尝试 which 查找
+    found = shutil.which("google-chrome") or shutil.which("chromium")
+    return found or ""
 
 
 def _ensure_pip():
@@ -47,6 +82,11 @@ def _ensure_pip():
 
 
 def _ensure_dependencies():
+    # 检查是否有系统 Chrome，如果有就不需要安装 Playwright 的 Chromium
+    system_chrome = _find_system_chrome()
+    if system_chrome:
+        print(f"[准备] 检测到系统 Chrome: {system_chrome}", file=sys.stderr)
+    
     missing = [pip for mod, pip in _REQUIRED_PACKAGES
                if not importlib.util.find_spec(mod)]
     if missing:
@@ -57,6 +97,11 @@ def _ensure_dependencies():
              "--break-system-packages"] + missing)
         importlib.invalidate_caches()
         import site; site.main()
+
+    # 如果已有系统 Chrome，跳过 Playwright Chromium 检测
+    if system_chrome:
+        print("[准备] 使用系统 Chrome，跳过 Playwright Chromium 安装", file=sys.stderr)
+        return
 
     from playwright.sync_api import sync_playwright
     try:
@@ -730,7 +775,15 @@ class FeishuBotCreator:
 # Chromium 作为 detached 进程运行，Python 退出后浏览器不会关闭。
 # ============================================================
 def _get_chromium_path() -> str:
-    """获取 Playwright 安装的 Chromium 可执行文件路径。"""
+    """获取 Chrome/Chromium 路径，优先使用系统安装的 Chrome。"""
+    # 优先使用系统 Chrome
+    system_chrome = _find_system_chrome()
+    if system_chrome:
+        _log(f"[浏览器] 使用系统 Chrome: {system_chrome}")
+        return system_chrome
+    
+    # 回退到 Playwright 自带的 Chromium
+    _log("[浏览器] 未找到系统 Chrome，使用 Playwright Chromium")
     from playwright.sync_api import sync_playwright
     pw = sync_playwright().start()
     path = pw.chromium.executable_path
@@ -767,7 +820,7 @@ def _launch_detached_chromium() -> int:
         stderr=subprocess.DEVNULL,
         start_new_session=True,  # detach: 父进程退出后子进程继续运行
     )
-    _log(f"[init] Chromium 已启动, PID={proc.pid}")
+    _log(f"[init] Chrome 已启动, PID={proc.pid}")
     return proc.pid
 
 
@@ -794,7 +847,6 @@ def cmd_init():
     _kill_cdp_browser()  # 清理残留
 
     # 删除整个 Chrome profile 目录，确保无缓存/cookie 干扰
-    import shutil
     profile_dir = os.path.join(STATE_DIR, "feishu-bot-chrome-profile")
     if os.path.isdir(profile_dir):
         _log("[init] 清理旧 Chrome profile 目录...")
