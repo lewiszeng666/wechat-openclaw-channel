@@ -84,14 +84,12 @@ def _ensure_pip():
 def _ensure_dependencies():
     # 检查是否有系统 Chrome，如果有就不需要安装 Playwright 的 Chromium
     system_chrome = _find_system_chrome()
-    if system_chrome:
-        print(f"[准备] 检测到系统 Chrome: {system_chrome}", file=sys.stderr)
+    # 注意：这里不输出任何内容，避免污染 JSON 响应
     
     missing = [pip for mod, pip in _REQUIRED_PACKAGES
                if not importlib.util.find_spec(mod)]
     if missing:
         _ensure_pip()
-        print(f"[准备] 正在安装: {', '.join(missing)} ...", file=sys.stderr)
         subprocess.check_call(
             [sys.executable, "-m", "pip", "install", "--quiet",
              "--break-system-packages"] + missing)
@@ -100,7 +98,6 @@ def _ensure_dependencies():
 
     # 如果已有系统 Chrome，跳过 Playwright Chromium 检测
     if system_chrome:
-        print("[准备] 使用系统 Chrome，跳过 Playwright Chromium 安装", file=sys.stderr)
         return
 
     from playwright.sync_api import sync_playwright
