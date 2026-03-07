@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenClaw 企业微信接入</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 24px;
+            font-size: 16px;
+        }
+        .status-card {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .status-card.valid {
+            background: #e8f5e9;
+            border: 1px solid #a5d6a7;
+        }
+        .status-card.invalid {
+            background: #ffebee;
+            border: 1px solid #ef9a9a;
+        }
+        .status-card.warning {
+            background: #fff3e0;
+            border: 1px solid #ffcc80;
+        }
+        .status-icon {
+            font-size: 24px;
+            margin-right: 12px;
+        }
+        .status-text {
+            flex: 1;
+        }
+        .status-text h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .status-text p {
+            font-size: 14px;
+            color: #666;
+        }
+        .steps {
+            margin: 24px 0;
+        }
+        .step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+        .step-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 16px;
+            flex-shrink: 0;
+        }
+        .step-content h3 {
+            font-size: 16px;
+            margin-bottom: 4px;
+            color: #333;
+        }
+        .step-content p {
+            color: #666;
+            font-size: 14px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+            margin-left: 12px;
+        }
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        .progress-container {
+            display: none;
+            margin-top: 24px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+        .progress-step {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .progress-step:last-child {
+            border-bottom: none;
+        }
+        .progress-step .icon {
+            width: 28px;
+            height: 28px;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .progress-step.pending .icon::before { content: "⏳"; }
+        .progress-step.running .icon::before { content: "🔄"; animation: spin 1s linear infinite; }
+        .progress-step.done .icon::before { content: "✅"; }
+        .progress-step.error .icon::before { content: "❌"; }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .progress-step .text {
+            flex: 1;
+            font-size: 14px;
+        }
+        .progress-step.running .text {
+            font-weight: 500;
+            color: #667eea;
+        }
+        .qrcode-container {
+            display: none;
+            text-align: center;
+            padding: 32px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 16px;
+            margin-top: 24px;
+        }
+        .qrcode-container img {
+            max-width: 200px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .qrcode-container h3 {
+            margin-top: 20px;
+            color: #333;
+            font-size: 18px;
+        }
+        .qrcode-container p {
+            color: #666;
+            margin-top: 8px;
+            font-size: 14px;
+        }
+        .result-info {
+            margin-top: 20px;
+            padding: 16px;
+            background: #fff;
+            border-radius: 8px;
+            text-align: left;
+        }
+        .result-info .item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .result-info .item:last-child {
+            border-bottom: none;
+        }
+        .result-info .label {
+            color: #666;
+            font-size: 14px;
+        }
+        .result-info .value {
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .input-group {
+            margin-bottom: 16px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .alert {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .alert-warning {
+            background: #fff3e0;
+            border: 1px solid #ffcc80;
+            color: #e65100;
+        }
+        .alert-error {
+            background: #ffebee;
+            border: 1px solid #ef9a9a;
+            color: #c62828;
+        }
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 12px;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+        }
+        .footer {
+            text-align: center;
+            padding: 16px;
+            color: rgba(255,255,255,0.8);
+            font-size: 14px;
+        }
+        .footer a {
+            color: white;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🚀 OpenClaw 企业微信接入</h1>
+            <p class="subtitle">自动化配置企业微信，快速接入OpenClaw AI能力</p>
+            
+            <!-- Cookie状态 -->
+            <div class="status-card {{ 'valid' if cookie_status.valid else 'invalid' }}">
+                <span class="status-icon">{{ '✅' if cookie_status.valid else '⚠️' }}</span>
+                <div class="status-text">
+                    <h3>Cookie状态: {{ '有效' if cookie_status.valid else '无效/已过期' }}</h3>
+                    <p>{{ cookie_status.message }}</p>
+                </div>
+            </div>
+            
+            {% if not cookie_status.valid %}
+            <!-- Cookie无效提示 -->
+            <div class="alert alert-warning">
+                <h3 style="margin-bottom: 8px;">⚠️ 需要预存Cookie</h3>
+                <p>请运维人员先运行以下命令预存企微后台Cookie：</p>
+                <div class="code-block">python cookie_manager.py save {{ config.WECOM_CORP_ID or 'YOUR_CORP_ID' }}</div>
+                <p style="margin-top: 12px; font-size: 13px;">Cookie有效期约20小时，过期后需重新运行上述命令。</p>
+            </div>
+            {% else %}
+            
+            <!-- 配置流程说明 -->
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>SSH连接OpenClaw服务器</h3>
+                        <p>验证与OpenClaw服务器的SSH连接</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>安装WeChat插件</h3>
+                        <p>通过CLI安装 @openclaw-china/wecom-app 插件</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>自动配置企微</h3>
+                        <p>创建应用、配置Webhook和可信IP（使用预存Cookie）</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3>微信扫码关注</h3>
+                        <p>扫描微信二维码关注企业，即可开始使用</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 配置表单 -->
+            <div class="input-group">
+                <label>应用名称</label>
+                <input type="text" id="appName" value="OpenClaw AI助手" placeholder="输入应用显示名称">
+            </div>
+            
+            <button class="btn btn-primary" id="startBtn" onclick="startSetup()">
+                🚀 开始配置
+            </button>
+            <button class="btn btn-secondary" onclick="testConnection()">
+                🔗 测试SSH连接
+            </button>
+            
+            <!-- 进度显示 -->
+            <div class="progress-container" id="progressContainer">
+                <h3 style="margin-bottom: 16px; color: #333;">配置进度</h3>
+                <div class="progress-step pending" id="step0">
+                    <span class="icon"></span>
+                    <span class="text">测试SSH连接</span>
+                </div>
+                <div class="progress-step pending" id="step1">
+                    <span class="icon"></span>
+                    <span class="text">安装 OpenClaw WeChat 插件</span>
+                </div>
+                <div class="progress-step pending" id="step2">
+                    <span class="icon"></span>
+                    <span class="text">配置企业微信后台</span>
+                </div>
+                <div class="progress-step pending" id="step3">
+                    <span class="icon"></span>
+                    <span class="text">生成微信关注二维码</span>
+                </div>
+            </div>
+            
+            <!-- 错误显示 -->
+            <div class="alert alert-error" id="errorContainer" style="display: none;">
+                <h3 style="margin-bottom: 8px;">❌ 配置失败</h3>
+                <p id="errorMessage"></p>
+            </div>
+            
+            <!-- 二维码显示 -->
+            <div class="qrcode-container" id="qrcodeContainer">
+                <img id="wechatQrcode" src="" alt="微信二维码">
+                <h3>🎉 配置完成！扫描关注企业微信</h3>
+                <p>使用微信扫描上方二维码，即可开始与AI对话</p>
+                
+                <div class="result-info" id="resultInfo">
+                    <div class="item">
+                        <span class="label">企业ID</span>
+                        <span class="value" id="resultCorpId">-</span>
+                    </div>
+                    <div class="item">
+                        <span class="label">应用ID</span>
+                        <span class="value" id="resultAgentId">-</span>
+                    </div>
+                    <div class="item">
+                        <span class="label">服务器IP</span>
+                        <span class="value" id="resultPublicIp">-</span>
+                    </div>
+                    <div class="item">
+                        <span class="label">Webhook URL</span>
+                        <span class="value" id="resultWebhook">-</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="footer">
+            <p>
+                Powered by <a href="https://github.com/openclaw" target="_blank">OpenClaw</a> | 
+                Cookie剩余: <strong>{{ '%.1f'|format(cookie_status.remaining_hours) }}</strong> 小时
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        let currentTaskId = null;
+        let pollInterval = null;
+        
+        async function testConnection() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '测试中...';
+            
+            try {
+                const response = await fetch('/api/test-ssh', { method: 'POST' });
+                const result = await response.json();
+                alert(result.success ? '✅ SSH连接成功！' : '❌ ' + result.message);
+            } catch (error) {
+                alert('❌ 请求失败: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔗 测试SSH连接';
+            }
+        }
+        
+        async function startSetup() {
+            const btn = document.getElementById('startBtn');
+            const progress = document.getElementById('progressContainer');
+            const errorContainer = document.getElementById('errorContainer');
+            const qrcodeContainer = document.getElementById('qrcodeContainer');
+            const appName = document.getElementById('appName').value;
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ 配置中...';
+            progress.style.display = 'block';
+            errorContainer.style.display = 'none';
+            qrcodeContainer.style.display = 'none';
+            
+            // 重置进度
+            for (let i = 0; i < 4; i++) {
+                document.getElementById('step' + i).className = 'progress-step pending';
+            }
+            
+            try {
+                const response = await fetch('/api/start-setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ app_name: appName })
+                });
+                
+                const result = await response.json();
+                currentTaskId = result.task_id;
+                
+                // 开始轮询任务状态
+                pollInterval = setInterval(pollTaskStatus, 1000);
+                
+            } catch (error) {
+                showError('请求失败: ' + error.message);
+                btn.disabled = false;
+                btn.textContent = '🚀 开始配置';
+            }
+        }
+        
+        async function pollTaskStatus() {
+            if (!currentTaskId) return;
+            
+            try {
+                const response = await fetch('/api/task/' + currentTaskId);
+                const task = await response.json();
+                
+                // 更新进度UI
+                updateProgress(task);
+                
+                if (task.status === 'completed') {
+                    clearInterval(pollInterval);
+                    showQRCode(task.result);
+                    document.getElementById('startBtn').textContent = '✅ 配置完成';
+                } else if (task.status === 'failed') {
+                    clearInterval(pollInterval);
+                    showError(task.error);
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('startBtn').textContent = '🔄 重试';
+                }
+            } catch (error) {
+                console.error('轮询失败:', error);
+            }
+        }
+        
+        function updateProgress(task) {
+            const steps = task.steps || [];
+            
+            steps.forEach((step, index) => {
+                const el = document.getElementById('step' + index);
+                if (el) {
+                    el.className = 'progress-step ' + step.status;
+                }
+            });
+        }
+        
+        function showError(message) {
+            const container = document.getElementById('errorContainer');
+            const msg = document.getElementById('errorMessage');
+            msg.textContent = message;
+            container.style.display = 'block';
+        }
+        
+        function showQRCode(result) {
+            const container = document.getElementById('qrcodeContainer');
+            const img = document.getElementById('wechatQrcode');
+            
+            if (result.wechat_qrcode_url) {
+                img.src = result.wechat_qrcode_url;
+            } else {
+                img.style.display = 'none';
+            }
+            
+            // 填充结果信息
+            document.getElementById('resultCorpId').textContent = result.corp_id || '-';
+            document.getElementById('resultAgentId').textContent = result.agent_id || '-';
+            document.getElementById('resultPublicIp').textContent = result.public_ip || '-';
+            document.getElementById('resultWebhook').textContent = result.webhook_url || '-';
+            
+            container.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
