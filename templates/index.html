@@ -3,593 +3,1107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenClaw 企微接入控制台</title>
+    <title>OpenClaw · 企微接入控制台</title>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --blue: #2563EB;
+            --blue-dark: #1D4ED8;
+            --blue-light: #EFF6FF;
+            --blue-mid: #BFDBFE;
+            --green: #16A34A;
+            --green-dark: #15803D;
+            --green-light: #F0FDF4;
+            --green-mid: #BBF7D0;
+            --red: #DC2626;
+            --red-light: #FEF2F2;
+            --amber: #D97706;
+            --amber-light: #FFFBEB;
+            --purple: #7C3AED;
+            --purple-light: #F5F3FF;
+            --purple-mid: #DDD6FE;
+            --gray-50: #F9FAFB;
+            --gray-100: #F3F4F6;
+            --gray-200: #E5E7EB;
+            --gray-300: #D1D5DB;
+            --gray-400: #9CA3AF;
+            --gray-500: #6B7280;
+            --gray-600: #4B5563;
+            --gray-700: #374151;
+            --gray-800: #1F2937;
+            --gray-900: #111827;
+            --white: #FFFFFF;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+            --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.05);
+            --shadow-lg: 0 10px 30px rgba(0,0,0,.10), 0 4px 10px rgba(0,0,0,.06);
+            --shadow-xl: 0 20px 50px rgba(0,0,0,.12), 0 8px 20px rgba(0,0,0,.07);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --radius-2xl: 24px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            color: var(--gray-800);
+            -webkit-font-smoothing: antialiased;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            background:
+                radial-gradient(ellipse 80% 50% at 15% -5%, rgba(37,99,235,.07) 0%, transparent 55%),
+                radial-gradient(ellipse 60% 40% at 85% 105%, rgba(124,58,237,.05) 0%, transparent 55%),
+                linear-gradient(160deg, #F0F4FF 0%, #F8FAFF 50%, #F5F0FF 100%);
             padding: 20px;
         }
-        .container {
-            max-width: 1000px;
+
+        /* ─── Page ─── */
+        .page {
+            max-width: 1100px;
             margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
         }
-        .card {
-            background: white;
-            border-radius: 16px;
-            padding: 30px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+
+        /* ─── Topbar ─── */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 18px 28px;
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
         }
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 24px;
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
         }
-        .subtitle {
-            color: #666;
-            margin-bottom: 20px;
-        }
-        
-        /* 双二维码并排布局 */
-        .qrcode-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-top: 20px;
-        }
-        @media (max-width: 768px) {
-            .qrcode-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        .qrcode-box {
-            text-align: center;
-            padding: 25px;
-            border-radius: 16px;
-            border: 2px solid #e0e0e0;
-            transition: all 0.3s;
-        }
-        .qrcode-box.success {
-            border-color: #28a745;
-            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-        }
-        .qrcode-box.active {
-            border-color: #667eea;
-            background: linear-gradient(135deg, #f0f4ff 0%, #e8ecff 100%);
-        }
-        .qrcode-box h3 {
-            margin-bottom: 15px;
-            color: #333;
-            font-size: 18px;
-        }
-        .qrcode-container {
-            min-height: 220px;
+
+        .logo-mark {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
             display: flex;
             align-items: center;
             justify-content: center;
-            flex-direction: column;
+            font-size: 22px;
+            flex-shrink: 0;
+            box-shadow: 0 4px 14px rgba(37,99,235,.3);
         }
-        .qrcode-container img {
-            max-width: 200px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+
+        .topbar-copy h1 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--gray-900);
         }
-        .qrcode-tip {
-            margin-top: 15px;
-            color: #666;
-            font-size: 14px;
-        }
-        .qrcode-status {
-            margin-top: 10px;
-            padding: 8px 16px;
-            border-radius: 20px;
+
+        .topbar-copy p {
             font-size: 13px;
-            display: inline-block;
+            color: var(--gray-500);
+            margin-top: 3px;
         }
-        .qrcode-status.pending { background: #fff3cd; color: #856404; }
-        .qrcode-status.success { background: #d4edda; color: #155724; }
-        .qrcode-status.error { background: #f8d7da; color: #721c24; }
-        
-        /* 聊天窗样式 */
-        .chat-box {
-            padding: 15px !important;
+
+        /* ─── Step indicator ─── */
+        .step-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0;
         }
+
+        .step-ind-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step-ind-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            border: 2px solid var(--gray-200);
+            background: var(--white);
+            color: var(--gray-400);
+            transition: all .3s;
+        }
+
+        .step-ind-dot.active {
+            border-color: var(--blue);
+            background: var(--blue);
+            color: var(--white);
+            box-shadow: 0 0 0 4px rgba(37,99,235,.15);
+        }
+
+        .step-ind-dot.done {
+            border-color: var(--green);
+            background: var(--green);
+            color: var(--white);
+        }
+
+        .step-ind-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--gray-400);
+            transition: color .3s;
+        }
+
+        .step-ind-item.active .step-ind-label { color: var(--blue); }
+        .step-ind-item.done .step-ind-label { color: var(--green); }
+
+        .step-ind-connector {
+            width: 32px;
+            height: 2px;
+            background: var(--gray-200);
+            margin: 0 4px;
+            border-radius: 1px;
+            transition: background .3s;
+        }
+
+        .step-ind-connector.done { background: var(--green); }
+
+        /* ─── Card ─── */
+        .card {
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            transition: box-shadow .2s;
+        }
+
+        .card-header {
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid var(--gray-100);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .card-icon-blue { background: var(--blue-light); }
+        .card-icon-green { background: var(--green-light); }
+        .card-icon-purple { background: var(--purple-light); }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .card-subtitle {
+            font-size: 12px;
+            color: var(--gray-500);
+            margin-top: 2px;
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        /* ─── QR Grid ─── */
+        .qr-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 700px) { .qr-grid { grid-template-columns: 1fr; } }
+
+        .qr-panel {
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            transition: all .25s;
+            background: var(--gray-50);
+        }
+
+        .qr-panel.active {
+            border-color: var(--blue-mid);
+            background: var(--blue-light);
+            box-shadow: 0 4px 16px rgba(37,99,235,.10);
+        }
+
+        .qr-panel.success {
+            border-color: var(--green-mid);
+            background: var(--green-light);
+        }
+
+        .qr-panel-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--gray-700);
+        }
+
+        .qr-frame {
+            position: relative;
+            width: 190px;
+            height: 190px;
+            border-radius: var(--radius-lg);
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .qr-spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--blue-mid);
+            border-top-color: var(--blue);
+            border-radius: 50%;
+            animation: spin .9s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .qr-loading-inner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .qr-loading-text {
+            font-size: 12px;
+            color: var(--gray-500);
+        }
+
+        #feishu-qrcode {
+            display: none;
+            position: relative;
+            z-index: 1;
+        }
+
+        #feishu-qrcode img {
+            display: block;
+            border-radius: var(--radius-sm);
+            transition: .25s ease;
+        }
+
+        #feishu-qrcode.logged-in img {
+            opacity: .15;
+            filter: blur(2px);
+        }
+
+        .qr-success-overlay {
+            position: absolute;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 8px;
+            background: rgba(240,253,244,.92);
+            z-index: 2;
+        }
+
+        .qr-success-overlay.show { display: flex; }
+
+        .qr-check {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--green), var(--green-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 6px 16px rgba(22,163,74,.3);
+        }
+
+        .qr-check-text {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--green);
+        }
+
+        /* Status chip */
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid transparent;
+        }
+
+        .status-chip::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-chip.idle { background: var(--gray-100); border-color: var(--gray-200); color: var(--gray-500); }
+        .status-chip.idle::before { background: var(--gray-400); }
+        .status-chip.info { background: var(--blue-light); border-color: var(--blue-mid); color: var(--blue); }
+        .status-chip.info::before { background: var(--blue); animation: pulse-dot 1.5s ease infinite; }
+        .status-chip.success { background: var(--green-light); border-color: var(--green-mid); color: var(--green); }
+        .status-chip.success::before { background: var(--green); }
+        .status-chip.error { background: var(--red-light); border-color: #FECACA; color: var(--red); }
+        .status-chip.error::before { background: var(--red); }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .6; transform: scale(.85); }
+        }
+
+        /* ─── Chat box ─── */
         .chat-container {
             display: flex;
             flex-direction: column;
-            height: 220px;
-            background: #f5f5f5;
-            border-radius: 10px;
+            height: 100%;
+            min-height: 220px;
+            border-radius: var(--radius-md);
             overflow: hidden;
+            border: 1px solid var(--gray-200);
         }
+
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 10px;
+            padding: 12px;
+            background: var(--gray-50);
             position: relative;
         }
+
         .chat-placeholder {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            color: #999;
-        }
-        .chat-placeholder p {
-            margin-top: 10px;
-            font-size: 14px;
-        }
-        .chat-message {
-            margin-bottom: 8px;
+            inset: 0;
             display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
+
+        .chat-placeholder-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-md);
+            background: var(--gray-100);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .chat-placeholder-text {
+            font-size: 13px;
+            color: var(--gray-400);
+        }
+
+        .chat-message {
+            display: flex;
+            margin-bottom: 8px;
+        }
+
         .chat-message.bot { justify-content: flex-start; }
         .chat-message.user { justify-content: flex-end; }
+
         .chat-bubble {
             max-width: 80%;
             padding: 8px 12px;
             border-radius: 10px;
             font-size: 13px;
-            line-height: 1.4;
+            line-height: 1.5;
             word-break: break-word;
         }
+
         .chat-message.bot .chat-bubble {
-            background: white;
-            color: #333;
+            background: var(--white);
+            color: var(--gray-700);
+            border: 1px solid var(--gray-200);
+            border-bottom-left-radius: 3px;
         }
+
         .chat-message.user .chat-bubble {
-            background: #667eea;
-            color: white;
+            background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+            color: var(--white);
+            border-bottom-right-radius: 3px;
         }
+
         .chat-input-area {
-            padding: 10px;
-            background: white;
-            border-top: 1px solid #eee;
+            padding: 10px 12px;
+            background: var(--white);
+            border-top: 1px solid var(--gray-200);
         }
+
         .quick-commands {
             display: flex;
-            gap: 5px;
+            gap: 6px;
             margin-bottom: 8px;
             flex-wrap: wrap;
         }
+
         .quick-cmd {
-            padding: 4px 8px;
-            background: #f0f4ff;
-            border: 1px solid #667eea;
-            border-radius: 10px;
+            padding: 4px 10px;
+            background: var(--blue-light);
+            border: 1px solid var(--blue-mid);
+            border-radius: 999px;
             font-size: 11px;
-            color: #667eea;
+            font-weight: 600;
+            color: var(--blue);
             cursor: pointer;
+            transition: all .15s;
         }
+
         .quick-cmd:hover:not(:disabled) {
-            background: #667eea;
-            color: white;
+            background: var(--blue);
+            color: var(--white);
+            border-color: var(--blue);
         }
-        .quick-cmd:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .chat-input-wrapper {
+
+        .quick-cmd:disabled { opacity: .45; cursor: not-allowed; }
+
+        .chat-input-row {
             display: flex;
             gap: 8px;
         }
-        .chat-input-wrapper input {
+
+        .chat-input-row input {
             flex: 1;
-            padding: 8px 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            padding: 8px 12px;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-sm);
             font-size: 13px;
             outline: none;
+            transition: border-color .15s;
+            font-family: inherit;
         }
-        .chat-input-wrapper input:focus {
-            border-color: #667eea;
-        }
-        .chat-input-wrapper input:disabled {
-            background: #f5f5f5;
-        }
-        .chat-input-wrapper button {
-            padding: 8px 14px;
+
+        .chat-input-row input:focus { border-color: var(--blue); }
+        .chat-input-row input:disabled { background: var(--gray-50); }
+
+        .chat-input-row button {
+            padding: 8px 16px;
             border: none;
-            border-radius: 6px;
-            background: #667eea;
-            color: white;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+            color: var(--white);
             font-size: 13px;
-            cursor: pointer;
-        }
-        .chat-input-wrapper button:hover:not(:disabled) {
-            background: #5a6fd6;
-        }
-        .chat-input-wrapper button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-        
-        /* 进度展示 */
-        .progress-section {
-            margin-top: 20px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 12px;
-        }
-        .progress-title {
             font-weight: 600;
-            color: #333;
-            margin-bottom: 15px;
+            cursor: pointer;
+            transition: opacity .15s;
+            font-family: inherit;
         }
+
+        .chat-input-row button:hover:not(:disabled) { opacity: .9; }
+        .chat-input-row button:disabled { opacity: .5; cursor: not-allowed; }
+
+        /* ─── Progress steps ─── */
         .progress-steps {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
+            margin-bottom: 12px;
         }
-        .progress-step {
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            background: #e9ecef;
-            color: #495057;
+
+        .prog-step {
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid var(--gray-200);
+            background: var(--gray-100);
+            color: var(--gray-500);
+            transition: all .2s;
         }
-        .progress-step.active {
-            background: #667eea;
-            color: white;
-            animation: pulse 2s infinite;
+
+        .prog-step.active {
+            background: var(--blue-light);
+            border-color: var(--blue-mid);
+            color: var(--blue);
+            animation: pulse-step 2s ease infinite;
         }
-        .progress-step.completed {
-            background: #28a745;
-            color: white;
+
+        .prog-step.completed {
+            background: var(--green-light);
+            border-color: var(--green-mid);
+            color: var(--green);
         }
-        .progress-step.error {
-            background: #dc3545;
-            color: white;
+
+        .prog-step.error {
+            background: var(--red-light);
+            border-color: #FECACA;
+            color: var(--red);
         }
-        @keyframes pulse {
+
+        @keyframes pulse-step {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
+            50% { opacity: .7; }
         }
-        
-        /* 终端日志 */
+
+        /* ─── Terminal ─── */
         .terminal {
-            background: #1e1e1e;
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 20px;
-            max-height: 300px;
+            border-radius: var(--radius-md);
+            background: #0F172A;
+            border: 1px solid #1E293B;
+            padding: 14px 16px;
+            max-height: 220px;
             overflow-y: auto;
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 13px;
         }
+
         .terminal-line {
-            color: #d4d4d4;
-            margin-bottom: 5px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12px;
+            line-height: 1.7;
+            color: #94A3B8;
             white-space: pre-wrap;
-            word-break: break-all;
+            word-break: break-word;
         }
-        .terminal-line.success { color: #4ec9b0; }
-        .terminal-line.error { color: #f14c4c; }
-        .terminal-line.info { color: #569cd6; }
-        .terminal-line.warn { color: #ce9178; }
-        
-        /* 配置结果 */
+
+        .terminal-line.success { color: #4ADE80; }
+        .terminal-line.error { color: #F87171; }
+        .terminal-line.info { color: #60A5FA; }
+        .terminal-line.warn { color: #FBBF24; }
+
+        /* ─── Config result ─── */
         .config-result {
-            margin-top: 20px;
-            padding: 20px;
-            background: #e8f5e9;
-            border-radius: 12px;
-            border: 2px solid #28a745;
+            border-radius: var(--radius-lg);
+            border: 1.5px solid var(--green-mid);
+            background: var(--green-light);
+            overflow: hidden;
         }
-        .config-result h4 {
-            color: #155724;
-            margin-bottom: 15px;
+
+        .config-result-header {
+            padding: 14px 18px;
+            background: linear-gradient(135deg, rgba(22,163,74,.12), rgba(22,163,74,.06));
+            border-bottom: 1px solid var(--green-mid);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .config-item {
+
+        .config-result-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, var(--green), var(--green-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .config-result-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--green-dark);
+        }
+
+        .config-table {
+            width: 100%;
+        }
+
+        .config-row {
             display: flex;
             justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #c3e6cb;
+            align-items: center;
+            padding: 10px 18px;
+            border-bottom: 1px solid rgba(22,163,74,.12);
+            gap: 12px;
         }
-        .config-item:last-child { border-bottom: none; }
-        .config-label { color: #155724; }
-        .config-value { 
-            font-family: monospace;
-            color: #155724;
+
+        .config-row:last-child { border-bottom: none; }
+
+        .config-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--green-dark);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .config-value {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12px;
+            color: var(--green-dark);
             word-break: break-all;
             text-align: right;
-            max-width: 60%;
+            max-width: 65%;
         }
-        
-        /* 按钮 */
+
+        /* ─── Member waiting ─── */
+        .member-waiting {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            gap: 16px;
+        }
+
+        .waiting-ring {
+            width: 56px;
+            height: 56px;
+            border: 4px solid var(--blue-mid);
+            border-top-color: var(--blue);
+            border-radius: 50%;
+            animation: spin .9s linear infinite;
+        }
+
+        .waiting-text {
+            font-size: 14px;
+            color: var(--blue);
+            font-weight: 600;
+        }
+
+        .member-detected-banner {
+            padding: 14px 18px;
+            border-radius: var(--radius-md);
+            background: linear-gradient(135deg, #FFFBEB, #FEF3C7);
+            border: 1px solid #FDE68A;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .member-detected-icon {
+            font-size: 22px;
+        }
+
+        .member-detected-text {
+            font-size: 14px;
+            color: var(--amber);
+            font-weight: 600;
+        }
+
+        /* ─── Final QR ─── */
+        .final-qr-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 32px;
+            background: linear-gradient(135deg, var(--green-light), #ECFDF5);
+            border-radius: var(--radius-xl);
+            border: 2px solid var(--green-mid);
+        }
+
+        .final-qr-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--green-dark);
+            text-align: center;
+        }
+
+        .final-qr-img {
+            max-width: 220px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .final-qr-desc {
+            font-size: 14px;
+            color: var(--green-dark);
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        /* ─── Buttons ─── */
         .btn {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
             padding: 10px 20px;
             border: none;
-            border-radius: 8px;
+            border-radius: var(--radius-md);
             font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all .18s ease;
             text-decoration: none;
+            white-space: nowrap;
+            font-family: inherit;
         }
+
+        .btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+            color: var(--white);
+            box-shadow: 0 4px 14px rgba(37,99,235,.3);
         }
         .btn-primary:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(37,99,235,.38);
         }
-        .btn-primary:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
+
         .btn-success {
-            background: #28a745;
-            color: white;
+            background: linear-gradient(135deg, var(--green), var(--green-dark));
+            color: var(--white);
+            box-shadow: 0 4px 14px rgba(22,163,74,.3);
         }
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 12px;
+
+        .btn-ghost {
+            background: var(--gray-100);
+            color: var(--gray-700);
+            border: 1px solid var(--gray-200);
         }
-        
-        .loading {
+        .btn-ghost:hover:not(:disabled) { background: var(--gray-200); }
+
+        .btn-sm { padding: 7px 14px; font-size: 12px; }
+
+        /* ─── Inline spinner ─── */
+        .inline-spin {
             display: inline-block;
-            width: 18px;
-            height: 18px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #667eea;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,.4);
+            border-top-color: var(--white);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 8px;
+            animation: spin .9s linear infinite;
             vertical-align: middle;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
+
+        /* ─── Scrollbar ─── */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 999px; }
+
+        /* ─── Utility ─── */
         .hidden { display: none !important; }
-        
-        /* 最终二维码 */
-        .final-qrcode {
-            text-align: center;
-            padding: 30px;
-            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-            border-radius: 16px;
-            border: 3px solid #28a745;
-        }
-        .final-qrcode h3 {
-            color: #155724;
-            margin-bottom: 20px;
-        }
-        .final-qrcode img {
-            max-width: 250px;
-            border-radius: 12px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        .mt-16 { margin-top: 16px; }
+        .mt-12 { margin-top: 12px; }
+        .mt-8 { margin-top: 8px; }
+        .section-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin-bottom: 10px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- 标题卡片 -->
-        <div class="card">
-            <h1>🦐 OpenClaw 企微接入控制台</h1>
-            <p class="subtitle">一键自动化配置企业微信，接入 OpenClaw AI 助手</p>
-        </div>
+    <div class="page">
 
-        <!-- 第一步：双二维码扫码 -->
+        <!-- ─── Topbar ─── -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <div class="logo-mark">🦐</div>
+                <div class="topbar-copy">
+                    <h1>OpenClaw 企微接入控制台</h1>
+                    <p>一键自动化配置企业微信，接入 OpenClaw AI 助手</p>
+                </div>
+            </div>
+
+            <!-- Step indicator -->
+            <div class="step-indicator" id="step-indicator">
+                <div class="step-ind-item active" id="ind-1">
+                    <div class="step-ind-dot active">1</div>
+                    <div class="step-ind-label">扫码准备</div>
+                </div>
+                <div class="step-ind-connector" id="conn-1"></div>
+                <div class="step-ind-item" id="ind-2">
+                    <div class="step-ind-dot">2</div>
+                    <div class="step-ind-label">等待成员</div>
+                </div>
+                <div class="step-ind-connector" id="conn-2"></div>
+                <div class="step-ind-item" id="ind-3">
+                    <div class="step-ind-dot">3</div>
+                    <div class="step-ind-label">完成接入</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- ─── Step 1 ─── -->
         <div class="card" id="step1-card">
-            <h2 style="margin-bottom: 20px;">📱 第一步：扫码准备</h2>
-            
-            <div class="qrcode-grid">
-                <!-- 飞书二维码 -->
-                <div class="qrcode-box" id="feishu-box">
-                    <h3>🐦 飞书扫码登录</h3>
-                    <div class="qrcode-container" id="feishu-qrcode-container">
-                        <div id="feishu-loading">
-                            <span class="loading"></span>
-                            <span style="color: #666;">正在获取二维码...</span>
-                        </div>
-                        <div id="feishu-qrcode" style="display: none;"></div>
-                    </div>
-                    <p class="qrcode-tip">使用<strong>飞书 App</strong>扫描</p>
-                    <div id="feishu-status" class="qrcode-status pending">等待扫码</div>
-                </div>
-                
-                <!-- 飞书机器人聊天窗 -->
-                <div class="qrcode-box chat-box" id="chat-box">
-                    <h3>🦐 OpenClaw 机器人</h3>
-                    <div class="chat-container">
-                        <div class="chat-messages" id="chat-messages">
-                            <div class="chat-placeholder" id="chat-placeholder">
-                                <span style="font-size: 40px;">🔐</span>
-                                <p>请先扫码登录飞书</p>
-                            </div>
-                        </div>
-                        <div class="chat-input-area">
-                            <div class="quick-commands" id="quick-commands">
-                                <button class="quick-cmd" onclick="sendQuickCmd('执行 curl ifconfig.me')" disabled>获取IP</button>
-                                <button class="quick-cmd" onclick="sendQuickCmd('执行 ls -la')" disabled>列目录</button>
-                                <button class="quick-cmd" onclick="sendQuickCmd('执行 whoami')" disabled>用户</button>
-                            </div>
-                            <div class="chat-input-wrapper">
-                                <input type="text" id="chat-input" placeholder="请先扫码登录..." disabled>
-                                <button id="send-btn" onclick="sendChatMessage()" disabled>发送</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="chat-status" class="qrcode-status pending">等待登录</div>
+            <div class="card-header">
+                <div class="card-icon card-icon-blue">📱</div>
+                <div>
+                    <div class="card-title">第一步：扫码准备</div>
+                    <div class="card-subtitle">使用飞书 App 扫码登录，验证 OpenClaw 通信通道</div>
                 </div>
             </div>
-            
-            <!-- 飞书验证进度 -->
-            <div class="progress-section" id="feishu-progress" style="display: none;">
-                <div class="progress-title">🔄 飞书通道验证进度</div>
-                <div class="progress-steps" id="feishu-steps">
-                    <div class="progress-step" id="step-scan">扫码登录</div>
-                    <div class="progress-step" id="step-verify">验证通道</div>
-                    <div class="progress-step" id="step-ip">获取公网IP</div>
+            <div class="card-body">
+
+                <div class="qr-grid">
+
+                    <!-- Feishu QR -->
+                    <div class="qr-panel active" id="feishu-box">
+                        <div class="qr-panel-title">🐦 飞书扫码登录</div>
+                        <div class="qr-frame">
+                            <div id="feishu-loading" class="qr-loading-inner">
+                                <div class="qr-spinner"></div>
+                                <div class="qr-loading-text">正在获取二维码...</div>
+                            </div>
+                            <div id="feishu-qrcode"></div>
+                            <div id="qr-success-overlay" class="qr-success-overlay">
+                                <div class="qr-check">✓</div>
+                                <div class="qr-check-text">扫码成功</div>
+                            </div>
+                        </div>
+                        <div style="font-size:12px; color:var(--gray-500);">使用 <strong>飞书 App</strong> 扫描</div>
+                        <div id="feishu-status" class="status-chip idle">等待扫码</div>
+                    </div>
+
+                    <!-- Chat box -->
+                    <div class="qr-panel" id="chat-box" style="padding:16px;">
+                        <div class="qr-panel-title">🦐 OpenClaw 机器人</div>
+                        <div class="chat-container" style="width:100%;">
+                            <div class="chat-messages" id="chat-messages">
+                                <div class="chat-placeholder" id="chat-placeholder">
+                                    <div class="chat-placeholder-icon">🔐</div>
+                                    <div class="chat-placeholder-text">请先扫码登录飞书</div>
+                                </div>
+                            </div>
+                            <div class="chat-input-area">
+                                <div class="quick-commands" id="quick-commands">
+                                    <button class="quick-cmd" onclick="sendQuickCmd('执行 curl ifconfig.me')" disabled>获取IP</button>
+                                    <button class="quick-cmd" onclick="sendQuickCmd('执行 ls -la')" disabled>列目录</button>
+                                    <button class="quick-cmd" onclick="sendQuickCmd('执行 whoami')" disabled>用户</button>
+                                </div>
+                                <div class="chat-input-row">
+                                    <input type="text" id="chat-input" placeholder="请先扫码登录..." disabled>
+                                    <button id="send-btn" onclick="sendChatMessage()" disabled>发送</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="chat-status" class="status-chip idle">等待登录</div>
+                    </div>
+
                 </div>
-                <div class="terminal" id="feishu-terminal" style="display: none;">
-                    <div id="feishu-logs"></div>
+
+                <!-- Progress -->
+                <div id="feishu-progress" class="mt-16 hidden">
+                    <div class="section-label">飞书通道验证进度</div>
+                    <div class="progress-steps">
+                        <div class="prog-step" id="step-scan">扫码登录</div>
+                        <div class="prog-step" id="step-verify">验证通道</div>
+                        <div class="prog-step" id="step-ip">获取公网IP</div>
+                    </div>
+                    <div class="terminal" id="feishu-terminal">
+                        <div id="feishu-logs"></div>
+                    </div>
                 </div>
+
             </div>
         </div>
 
-        <!-- 第二步：新成员检测与应用创建 -->
+        <!-- ─── Step 2 ─── -->
         <div class="card hidden" id="step2-card">
-            <h2 style="margin-bottom: 20px;">⚙️ 第二步：等待新成员加入</h2>
-            <p style="color: #666; margin-bottom: 15px;">当有新成员通过微信扫码加入企业后，系统将自动为其创建专属应用</p>
-            
-            <div id="member-waiting" style="text-align: center; padding: 30px;">
-                <span class="loading" style="width: 40px; height: 40px; border-width: 3px;"></span>
-                <p style="margin-top: 15px; color: #667eea;">等待新成员加入...</p>
-            </div>
-            
-            <div id="member-detected" style="display: none;">
-                <div style="padding: 20px; background: #fff3cd; border-radius: 10px; margin-bottom: 15px;">
-                    <strong>🎉 检测到新成员：</strong><span id="new-member-name"></span>
+            <div class="card-header">
+                <div class="card-icon card-icon-purple">⚙️</div>
+                <div>
+                    <div class="card-title">第二步：等待新成员加入</div>
+                    <div class="card-subtitle">当有新成员通过微信扫码加入企业后，系统将自动为其创建专属应用</div>
                 </div>
-                
-                <div class="progress-section">
-                    <div class="progress-title">🔄 应用创建进度</div>
-                    <div class="progress-steps" id="app-create-steps">
-                        <div class="progress-step" id="step-create-app">创建应用</div>
-                        <div class="progress-step" id="step-config-api">配置API接收</div>
-                        <div class="progress-step" id="step-install-plugin">安装插件</div>
-                        <div class="progress-step" id="step-save-config">保存配置</div>
+            </div>
+            <div class="card-body">
+
+                <div id="member-waiting" class="member-waiting">
+                    <div class="waiting-ring"></div>
+                    <div class="waiting-text">正在监听新成员加入...</div>
+                </div>
+
+                <div id="member-detected" class="hidden">
+                    <div class="member-detected-banner">
+                        <div class="member-detected-icon">🎉</div>
+                        <div class="member-detected-text">检测到新成员：<strong id="new-member-name"></strong></div>
+                    </div>
+
+                    <div class="section-label">应用创建进度</div>
+                    <div class="progress-steps">
+                        <div class="prog-step" id="step-create-app">创建应用</div>
+                        <div class="prog-step" id="step-config-api">配置API接收</div>
+                        <div class="prog-step" id="step-install-plugin">安装插件</div>
+                        <div class="prog-step" id="step-save-config">保存配置</div>
                     </div>
                     <div class="terminal" id="app-terminal">
                         <div id="app-logs"></div>
                     </div>
                 </div>
+
+                <!-- Config result -->
+                <div class="config-result hidden mt-16" id="app-config-result">
+                    <div class="config-result-header">
+                        <div class="config-result-icon">✓</div>
+                        <div class="config-result-title">应用配置完成</div>
+                    </div>
+                    <div class="config-table">
+                        <div class="config-row">
+                            <span class="config-label">CORP_ID</span>
+                            <span class="config-value" id="result-corp-id">—</span>
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">AgentId</span>
+                            <span class="config-value" id="result-agent-id">—</span>
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">Secret</span>
+                            <span class="config-value" id="result-secret">—</span>
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">Token</span>
+                            <span class="config-value" id="result-token">—</span>
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">EncodingAESKey</span>
+                            <span class="config-value" id="result-aes-key">—</span>
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">Callback URL</span>
+                            <span class="config-value" id="result-callback-url">—</span>
+                        </div>
+                    </div>
+                </div>
+
             </div>
-            
-            <!-- 配置结果 -->
-            <div class="config-result hidden" id="app-config-result">
-                <h4>✅ 应用配置完成</h4>
-                <div class="config-item">
-                    <span class="config-label">CORP_ID</span>
-                    <span class="config-value" id="result-corp-id">-</span>
+        </div>
+
+        <!-- ─── Step 3 ─── -->
+        <div class="card hidden" id="step3-card">
+            <div class="card-header">
+                <div class="card-icon card-icon-green">🎉</div>
+                <div>
+                    <div class="card-title">第三步：完成接入</div>
+                    <div class="card-subtitle">扫描下方二维码，关注企业微信应用开始使用</div>
                 </div>
-                <div class="config-item">
-                    <span class="config-label">AgentId</span>
-                    <span class="config-value" id="result-agent-id">-</span>
-                </div>
-                <div class="config-item">
-                    <span class="config-label">Secret</span>
-                    <span class="config-value" id="result-secret">-</span>
-                </div>
-                <div class="config-item">
-                    <span class="config-label">Token</span>
-                    <span class="config-value" id="result-token">-</span>
-                </div>
-                <div class="config-item">
-                    <span class="config-label">EncodingAESKey</span>
-                    <span class="config-value" id="result-aes-key">-</span>
-                </div>
-                <div class="config-item">
-                    <span class="config-label">Callback URL</span>
-                    <span class="config-value" id="result-callback-url">-</span>
+            </div>
+            <div class="card-body">
+                <div class="final-qr-section">
+                    <div class="final-qr-title">🦐 扫码使用 OpenClaw AI 助手</div>
+                    <img id="final-qrcode-img" class="final-qr-img" src="" alt="微信插件二维码">
+                    <div class="final-qr-desc">
+                        使用 <strong>微信</strong> 扫描上方二维码<br>
+                        关注企业微信应用即可开始使用 OpenClaw AI
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- 第三步：最终二维码 -->
-        <div class="card hidden" id="step3-card">
-            <h2 style="margin-bottom: 20px;">🎉 第三步：完成接入</h2>
-            <div class="final-qrcode">
-                <h3>🦐 扫码使用 OpenClaw AI 助手</h3>
-                <img id="final-qrcode-img" src="" alt="微信插件二维码">
-                <p style="margin-top: 20px; color: #155724;">使用<strong>微信</strong>扫描上方二维码，关注企业微信应用即可开始使用</p>
-            </div>
-        </div>
     </div>
 
     <script>
-        // 全局状态
+        // ─── Global state ───
         let feishuSessionId = null;
         let pollTimer = null;
         let memberPollTimer = null;
-        let feishuCredentials = null;  // {app_id, app_secret, open_id}
+        let feishuCredentials = null;
         let openclawHost = null;
-        
-        // ============================================================
-        // 日志工具
-        // ============================================================
+
+        // ─── Step indicator ───
+        function setIndicatorStep(step) {
+            [1, 2, 3].forEach(n => {
+                const item = document.getElementById('ind-' + n);
+                const dot = item.querySelector('.step-ind-dot');
+                item.className = 'step-ind-item' + (n === step ? ' active' : n < step ? ' done' : '');
+                dot.className = 'step-ind-dot' + (n === step ? ' active' : n < step ? ' done' : '');
+                dot.textContent = n < step ? '✓' : String(n);
+            });
+            if (step > 1) document.getElementById('conn-1').classList.add('done');
+            if (step > 2) document.getElementById('conn-2').classList.add('done');
+        }
+
+        // ─── Log ───
         function addLog(containerId, message, type = '') {
             const container = document.getElementById(containerId);
             if (!container) return;
-            
             const line = document.createElement('div');
             line.className = 'terminal-line' + (type ? ' ' + type : '');
-            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            const ts = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            line.textContent = `[${ts}] ${message}`;
             container.appendChild(line);
-            container.parentElement.scrollTop = container.parentElement.scrollHeight;
+            const terminal = container.closest('.terminal');
+            if (terminal) terminal.scrollTop = terminal.scrollHeight;
         }
-        
+
         function setStepStatus(stepId, status) {
-            const step = document.getElementById(stepId);
-            if (!step) return;
-            step.classList.remove('active', 'completed', 'error');
-            if (status) step.classList.add(status);
+            const el = document.getElementById(stepId);
+            if (!el) return;
+            el.classList.remove('active', 'completed', 'error');
+            if (status) el.classList.add(status);
         }
-        
-        // ============================================================
-        // 页面初始化：同时加载两个二维码
-        // ============================================================
-        document.addEventListener('DOMContentLoaded', async function() {
-            // 加载飞书二维码
+
+        // ─── Init ───
+        document.addEventListener('DOMContentLoaded', async () => {
             await initFeishuQrcode();
+            document.getElementById('chat-input').addEventListener('keypress', e => {
+                if (e.key === 'Enter' && !e.target.disabled) sendChatMessage();
+            });
         });
-        
-        // ============================================================
-        // 功能1：飞书扫码 + 通道验证 + 获取公网IP
-        // ============================================================
+
+        // ─── Feishu QR ───
         async function initFeishuQrcode() {
             const loading = document.getElementById('feishu-loading');
             const qrcodeDiv = document.getElementById('feishu-qrcode');
             const statusDiv = document.getElementById('feishu-status');
-            
+
             try {
                 const resp = await fetch('/api/feishu/init', { method: 'POST' });
                 const data = await resp.json();
-                
+
                 if (data.success) {
                     feishuSessionId = data.session_id;
-                    
-                    // 显示二维码
                     loading.style.display = 'none';
                     qrcodeDiv.style.display = 'block';
                     qrcodeDiv.innerHTML = '';
-                    
+
                     try {
                         new QRCode(qrcodeDiv, {
                             text: data.qr_content,
-                            width: 180,
-                            height: 180,
+                            width: 160,
+                            height: 160,
                             correctLevel: QRCode.CorrectLevel.M
                         });
-                    } catch (qrError) {
-                        qrcodeDiv.innerHTML = '<p style="color: red;">二维码生成失败</p>';
+                    } catch (e) {
+                        qrcodeDiv.innerHTML = '<div style="color:var(--red);font-size:12px;">二维码生成失败</div>';
                     }
-                    
+
+                    statusDiv.className = 'status-chip idle';
                     statusDiv.textContent = '等待扫码';
-                    statusDiv.className = 'qrcode-status pending';
-                    
-                    // 开始轮询
                     startFeishuPolling();
                 } else {
-                    loading.innerHTML = '<p style="color: red;">获取失败: ' + (data.error || '未知错误') + '</p>';
+                    loading.innerHTML = `<div class="qr-loading-text" style="color:var(--red);">获取失败</div>`;
+                    statusDiv.className = 'status-chip error';
                     statusDiv.textContent = '获取失败';
-                    statusDiv.className = 'qrcode-status error';
                 }
             } catch (e) {
-                loading.innerHTML = '<p style="color: red;">网络错误: ' + e.message + '</p>';
+                loading.innerHTML = `<div class="qr-loading-text" style="color:var(--red);">网络错误</div>`;
             }
         }
-        
+
         function startFeishuPolling() {
             pollTimer = setInterval(async () => {
                 try {
@@ -601,36 +1115,34 @@
                     const data = await resp.json();
                     const statusDiv = document.getElementById('feishu-status');
                     const feishuBox = document.getElementById('feishu-box');
-                    
+
                     if (data.status === 'completed') {
                         clearInterval(pollTimer);
-                        statusDiv.textContent = '✅ 扫码成功';
-                        statusDiv.className = 'qrcode-status success';
+                        statusDiv.className = 'status-chip success';
+                        statusDiv.textContent = '扫码成功';
+                        feishuBox.classList.remove('active');
                         feishuBox.classList.add('success');
-                        
-                        // 保存凭证
+                        document.getElementById('qr-success-overlay').classList.add('show');
+                        document.getElementById('feishu-qrcode').classList.add('logged-in');
+
                         feishuCredentials = {
                             app_id: data.app_id,
                             app_secret: data.app_secret,
                             open_id: data.open_id,
                             bot_name: data.bot_name
                         };
-                        
-                        // 激活聊天窗
+
                         activateChat();
-                        
-                        // 开始验证通道并获取公网IP
                         await verifyChannelAndGetIP();
-                        
+
                     } else if (data.status === 'scanned') {
-                        statusDiv.textContent = '📱 已扫码，请确认';
-                        statusDiv.className = 'qrcode-status pending';
-                        
+                        statusDiv.className = 'status-chip info';
+                        statusDiv.textContent = '已扫码，请确认';
+
                     } else if (data.status === 'expired') {
                         clearInterval(pollTimer);
-                        statusDiv.textContent = '⚠️ 已过期，正在刷新...';
-                        statusDiv.className = 'qrcode-status error';
-                        // 自动重新获取二维码
+                        statusDiv.className = 'status-chip error';
+                        statusDiv.textContent = '已过期，刷新中...';
                         setTimeout(() => initFeishuQrcode(), 1000);
                     }
                 } catch (e) {
@@ -638,24 +1150,19 @@
                 }
             }, 2000);
         }
-        
+
         async function verifyChannelAndGetIP() {
-            // 显示进度区域
             const progressSection = document.getElementById('feishu-progress');
-            const terminal = document.getElementById('feishu-terminal');
-            progressSection.style.display = 'block';
-            terminal.style.display = 'block';
-            
-            // 步骤1: 扫码完成
+            progressSection.classList.remove('hidden');
+
             setStepStatus('step-scan', 'completed');
             addLog('feishu-logs', '扫码登录成功', 'success');
             addLog('feishu-logs', `机器人: ${feishuCredentials.bot_name}`, 'info');
             addLog('feishu-logs', `App ID: ${feishuCredentials.app_id}`, 'info');
-            
-            // 步骤2: 验证通道
+
             setStepStatus('step-verify', 'active');
             addLog('feishu-logs', '正在验证飞书↔OpenClaw通道...');
-            
+
             try {
                 const verifyResp = await fetch('/api/feishu/verify', {
                     method: 'POST',
@@ -667,33 +1174,26 @@
                     })
                 });
                 const verifyData = await verifyResp.json();
-                
+
                 if (verifyData.available) {
                     setStepStatus('step-verify', 'completed');
-                    if (verifyData.skipped) {
-                        addLog('feishu-logs', '✓ 凭证已保存（跳过通道验证）', 'success');
-                    } else {
-                        addLog('feishu-logs', '✓ 通道验证成功', 'success');
-                    }
-                    
-                    // 如果没有 open_id，跳过获取IP步骤，直接进入第二步
+                    addLog('feishu-logs', verifyData.skipped ? '✓ 凭证已保存（跳过通道验证）' : '✓ 通道验证成功', 'success');
+
                     if (!feishuCredentials.open_id) {
                         setStepStatus('step-ip', 'completed');
                         addLog('feishu-logs', '✓ 跳过获取IP（无需此步骤）', 'info');
                         addLog('feishu-logs', '飞书凭证配置完成，继续下一步...', 'success');
-                        
-                        // 直接进入第二步
                         setTimeout(() => {
                             document.getElementById('step2-card').classList.remove('hidden');
+                            setIndicatorStep(2);
                             startMemberPolling();
                         }, 1000);
                         return;
                     }
-                    
-                    // 步骤3: 获取公网IP（仅当有 open_id 时）
+
                     setStepStatus('step-ip', 'active');
                     addLog('feishu-logs', '正在获取 OpenClaw 服务器公网IP...');
-                    
+
                     const ipResp = await fetch('/api/openclaw/get-ip', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -704,25 +1204,22 @@
                         })
                     });
                     const ipData = await ipResp.json();
-                    
+
                     if (ipData.success && ipData.ip) {
                         openclawHost = ipData.ip;
                         setStepStatus('step-ip', 'completed');
                         addLog('feishu-logs', `✓ 获取公网IP成功: ${openclawHost}`, 'success');
                         addLog('feishu-logs', `回调URL: http://${openclawHost}:3000/wecom`, 'info');
-                        
-                        // 第一步全部完成，进入第二步
                         setTimeout(() => {
                             document.getElementById('step2-card').classList.remove('hidden');
+                            setIndicatorStep(2);
                             startMemberPolling();
                         }, 1000);
-                        
                     } else {
                         setStepStatus('step-ip', 'error');
                         addLog('feishu-logs', `✗ 获取公网IP失败: ${ipData.error || '未知错误'}`, 'error');
                         addLog('feishu-logs', '提示: 请确保 OpenClaw 已正确配置飞书通道', 'warn');
                     }
-                    
                 } else {
                     setStepStatus('step-verify', 'error');
                     addLog('feishu-logs', `✗ 通道验证失败: ${verifyData.message}`, 'error');
@@ -732,33 +1229,27 @@
                 addLog('feishu-logs', `✗ 验证异常: ${e.message}`, 'error');
             }
         }
-        
-        // ============================================================
-        // 功能2：飞书机器人聊天
-        // ============================================================
+
+        // ─── Chat ───
         function activateChat() {
             const chatBox = document.getElementById('chat-box');
             const chatStatus = document.getElementById('chat-status');
             const chatInput = document.getElementById('chat-input');
             const sendBtn = document.getElementById('send-btn');
             const placeholder = document.getElementById('chat-placeholder');
-            
-            // 激活聊天
+
             chatBox.classList.add('success');
-            chatStatus.textContent = '✅ 已连接';
-            chatStatus.className = 'qrcode-status success';
+            chatStatus.className = 'status-chip success';
+            chatStatus.textContent = '已连接';
             chatInput.disabled = false;
             chatInput.placeholder = '输入命令发送给 OpenClaw...';
             sendBtn.disabled = false;
             document.querySelectorAll('.quick-cmd').forEach(btn => btn.disabled = false);
-            
-            // 隐藏占位符
             placeholder.style.display = 'none';
-            
-            // 发送欢迎消息
+
             addChatMessage('bot', '你好！我是 OpenClaw 机器人，已成功连接。');
         }
-        
+
         function addChatMessage(type, text) {
             const container = document.getElementById('chat-messages');
             const div = document.createElement('div');
@@ -767,21 +1258,20 @@
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
         }
-        
+
         async function sendChatMessage() {
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
             if (!text) return;
-            
+
             addChatMessage('user', text);
             input.value = '';
-            
+
             const btn = document.getElementById('send-btn');
             btn.disabled = true;
-            btn.textContent = '...';
-            
+            btn.innerHTML = '<span class="inline-spin"></span>';
+
             try {
-                // 调用飞书发送消息接口
                 const resp = await fetch('/api/feishu/send-message', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -793,43 +1283,27 @@
                     })
                 });
                 const data = await resp.json();
-                
-                if (data.success) {
-                    addChatMessage('bot', '命令已发送，请在飞书中查看回复。');
-                } else {
-                    addChatMessage('bot', '发送失败: ' + (data.error || '请重试'));
-                }
+                addChatMessage('bot', data.success ? '命令已发送，请在飞书中查看回复。' : '发送失败: ' + (data.error || '请重试'));
             } catch (e) {
                 addChatMessage('bot', '发送失败: ' + e.message);
             }
-            
+
             btn.disabled = false;
             btn.textContent = '发送';
         }
-        
+
         function sendQuickCmd(cmd) {
             document.getElementById('chat-input').value = cmd;
             sendChatMessage();
         }
-        
-        // 回车发送
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('chat-input').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && !e.target.disabled) sendChatMessage();
-            });
-        });
-        
-        // ============================================================
-        // 功能3-6：新成员检测与应用创建
-        // ============================================================
+
+        // ─── Member polling ───
         function startMemberPolling() {
             addLog('app-logs', '开始监听新成员加入...');
-            
             memberPollTimer = setInterval(async () => {
                 try {
                     const resp = await fetch('/api/new-member/poll');
                     const data = await resp.json();
-                    
                     if (data.new_member) {
                         clearInterval(memberPollTimer);
                         onNewMemberDetected(data.new_member);
@@ -839,24 +1313,20 @@
                 }
             }, 3000);
         }
-        
+
         async function onNewMemberDetected(member) {
             document.getElementById('member-waiting').style.display = 'none';
-            document.getElementById('member-detected').style.display = 'block';
+            document.getElementById('member-detected').classList.remove('hidden');
             document.getElementById('new-member-name').textContent = member.name;
-            
             addLog('app-logs', `🎉 检测到新成员: ${member.name}`, 'success');
             addLog('app-logs', `User ID: ${member.user_id}`, 'info');
-            
-            // 开始创建应用流程
             await createAppForMember(member);
         }
-        
+
         async function createAppForMember(member) {
-            // 步骤1: 创建应用
             setStepStatus('step-create-app', 'active');
             addLog('app-logs', '正在创建企业微信应用...');
-            
+
             try {
                 const createResp = await fetch('/api/new-member/create-app', {
                     method: 'POST',
@@ -868,9 +1338,8 @@
                     })
                 });
                 const createData = await createResp.json();
-                
+
                 if (createData.task_id) {
-                    // 轮询任务状态
                     await pollAppCreationTask(createData.task_id, member);
                 } else {
                     setStepStatus('step-create-app', 'error');
@@ -881,55 +1350,45 @@
                 addLog('app-logs', `✗ 创建应用异常: ${e.message}`, 'error');
             }
         }
-        
+
         async function pollAppCreationTask(taskId, member) {
             const checkTask = async () => {
                 const resp = await fetch(`/api/new-member/task/${taskId}`);
                 const data = await resp.json();
-                
+
                 if (data.status === 'completed') {
-                    // 应用创建完成
                     setStepStatus('step-create-app', 'completed');
                     setStepStatus('step-config-api', 'completed');
                     addLog('app-logs', '✓ 应用创建成功', 'success');
-                    
-                    // 显示配置结果
                     displayConfig(data.config);
-                    
-                    // 继续安装插件
                     await installWecomPlugin(data.config, member);
-                    
                 } else if (data.status === 'running') {
-                    const step = data.current_step || '处理中';
-                    addLog('app-logs', `[进行中] ${step}...`);
+                    addLog('app-logs', `[进行中] ${data.current_step || '处理中'}...`);
                     setTimeout(checkTask, 2000);
-                    
                 } else if (data.status === 'failed') {
                     setStepStatus('step-create-app', 'error');
                     addLog('app-logs', `✗ 创建失败: ${data.error}`, 'error');
-                    
                 } else {
                     setTimeout(checkTask, 2000);
                 }
             };
-            
             await checkTask();
         }
-        
+
         function displayConfig(config) {
-            document.getElementById('result-corp-id').textContent = config.corp_id || '-';
-            document.getElementById('result-agent-id').textContent = config.agent_id || '-';
-            document.getElementById('result-secret').textContent = config.secret ? config.secret.substring(0, 20) + '...' : '-';
-            document.getElementById('result-token').textContent = config.token || '-';
-            document.getElementById('result-aes-key').textContent = config.aes_key || '-';
-            document.getElementById('result-callback-url').textContent = config.callback_url || '-';
+            document.getElementById('result-corp-id').textContent = config.corp_id || '—';
+            document.getElementById('result-agent-id').textContent = config.agent_id || '—';
+            document.getElementById('result-secret').textContent = config.secret ? config.secret.substring(0, 20) + '...' : '—';
+            document.getElementById('result-token').textContent = config.token || '—';
+            document.getElementById('result-aes-key').textContent = config.aes_key || '—';
+            document.getElementById('result-callback-url').textContent = config.callback_url || '—';
             document.getElementById('app-config-result').classList.remove('hidden');
         }
-        
+
         async function installWecomPlugin(config, member) {
             setStepStatus('step-install-plugin', 'active');
             addLog('app-logs', '正在通过飞书通道安装 wecom-app 插件...');
-            
+
             try {
                 const resp = await fetch('/api/openclaw/install-wecom-plugin', {
                     method: 'POST',
@@ -946,24 +1405,15 @@
                     })
                 });
                 const data = await resp.json();
-                
+
                 if (data.success) {
                     setStepStatus('step-install-plugin', 'completed');
                     addLog('app-logs', '✓ 插件安装命令已发送', 'success');
-                    
-                    // 显示发送的命令
                     if (data.steps) {
-                        data.steps.forEach(step => {
-                            addLog('app-logs', `  ${step.status === 'success' ? '✓' : '!'} ${step.message}`, step.status === 'success' ? 'info' : 'warn');
-                        });
+                        data.steps.forEach(s => addLog('app-logs', `  ${s.status === 'success' ? '✓' : '!'} ${s.message}`, s.status === 'success' ? 'info' : 'warn'));
                     }
-                    
-                    // 等待一段时间后保存配置
                     addLog('app-logs', '等待 OpenClaw 处理命令...');
-                    setTimeout(async () => {
-                        await saveApiConfig(config);
-                    }, 5000);
-                    
+                    setTimeout(async () => { await saveApiConfig(config); }, 5000);
                 } else {
                     setStepStatus('step-install-plugin', 'error');
                     addLog('app-logs', `✗ 插件安装失败: ${data.message}`, 'error');
@@ -973,28 +1423,23 @@
                 addLog('app-logs', `✗ 安装异常: ${e.message}`, 'error');
             }
         }
-        
+
         async function saveApiConfig(config) {
             setStepStatus('step-save-config', 'active');
             addLog('app-logs', '正在保存 API 接收配置...');
-            
+
             try {
                 const resp = await fetch('/api/new-member/save-api-config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        task_id: config.task_id
-                    })
+                    body: JSON.stringify({ task_id: config.task_id })
                 });
                 const data = await resp.json();
-                
+
                 if (data.success) {
                     setStepStatus('step-save-config', 'completed');
                     addLog('app-logs', '✓ API 配置保存成功', 'success');
-                    
-                    // 获取最终二维码
                     await getFinalQrcode(config);
-                    
                 } else {
                     setStepStatus('step-save-config', 'error');
                     addLog('app-logs', `✗ 保存失败: ${data.error}`, 'error');
@@ -1004,22 +1449,19 @@
                 addLog('app-logs', `✗ 保存异常: ${e.message}`, 'error');
             }
         }
-        
+
         async function getFinalQrcode(config) {
             addLog('app-logs', '正在获取微信插件二维码...');
-            
             try {
                 const resp = await fetch('/api/wecom/wechat-qrcode?agent_id=' + config.agent_id);
                 const data = await resp.json();
-                
+
                 if (data.success && data.qrcode_base64) {
                     addLog('app-logs', '✓ 获取二维码成功', 'success');
                     addLog('app-logs', '🎉 全部配置完成！', 'success');
-                    
-                    // 显示最终二维码
                     document.getElementById('final-qrcode-img').src = data.qrcode_base64;
                     document.getElementById('step3-card').classList.remove('hidden');
-                    
+                    setIndicatorStep(3);
                 } else {
                     addLog('app-logs', `获取二维码失败: ${data.error || '未知错误'}`, 'warn');
                     addLog('app-logs', '请手动从企微后台获取微信插件二维码', 'info');

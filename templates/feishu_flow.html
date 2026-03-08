@@ -3,268 +3,310 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenClaw 飞书接入工作台</title>
+    <title>OpenClaw · 飞书接入工作台</title>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <style>
         :root {
-            --primary: #007AFF;
-            --primary-soft: rgba(0, 122, 255, 0.12);
-            --success: #34C759;
-            --success-soft: rgba(52, 199, 89, 0.14);
-            --danger: #FF3B30;
-            --danger-soft: rgba(255, 59, 48, 0.14);
-            --warning: #8E8E93;
-            --warning-soft: rgba(142, 142, 147, 0.12);
-            --card: rgba(255, 255, 255, 0.94);
-            --text-main: #111827;
-            --text-sub: #6B7280;
-            --line: rgba(148, 163, 184, 0.18);
-            --shadow: 0 24px 60px rgba(15, 23, 42, 0.10);
-            --radius-xl: 28px;
-            --radius-lg: 22px;
-            --radius-md: 16px;
+            --blue: #2563EB;
+            --blue-light: #EFF6FF;
+            --blue-mid: #BFDBFE;
+            --green: #16A34A;
+            --green-light: #F0FDF4;
+            --green-mid: #BBF7D0;
+            --red: #DC2626;
+            --red-light: #FEF2F2;
+            --amber: #D97706;
+            --amber-light: #FFFBEB;
+            --gray-50: #F9FAFB;
+            --gray-100: #F3F4F6;
+            --gray-200: #E5E7EB;
+            --gray-300: #D1D5DB;
+            --gray-400: #9CA3AF;
+            --gray-500: #6B7280;
+            --gray-600: #4B5563;
+            --gray-700: #374151;
+            --gray-800: #1F2937;
+            --gray-900: #111827;
+            --white: #FFFFFF;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+            --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.05);
+            --shadow-lg: 0 10px 30px rgba(0,0,0,.10), 0 4px 10px rgba(0,0,0,.06);
+            --shadow-xl: 0 20px 50px rgba(0,0,0,.12), 0 8px 20px rgba(0,0,0,.07);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --radius-2xl: 24px;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        html,
-        body {
-            width: 100%;
+        html, body {
             height: 100%;
-            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            color: var(--gray-800);
+            background: var(--gray-50);
+            -webkit-font-smoothing: antialiased;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            color: var(--text-main);
+            min-height: 100vh;
             background:
-                radial-gradient(circle at top left, rgba(0, 122, 255, 0.16), transparent 28%),
-                radial-gradient(circle at bottom right, rgba(52, 199, 89, 0.10), transparent 26%),
-                linear-gradient(135deg, #F3F8FF 0%, #F8FBFF 56%, #EFF7FF 100%);
-            padding: 16px;
+                radial-gradient(ellipse 80% 50% at 20% -10%, rgba(37,99,235,.07) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 40% at 80% 110%, rgba(22,163,74,.05) 0%, transparent 60%),
+                linear-gradient(160deg, #F0F4FF 0%, #F8FAFF 50%, #F0FBF4 100%);
+            padding: 20px;
         }
 
-        .shell {
-            width: min(1440px, calc(100vw - 32px));
-            min-width: 1200px;
-            height: calc(100vh - 32px);
+        /* ─── Layout ─── */
+        .page {
+            max-width: 1280px;
             margin: 0 auto;
-            display: grid;
-            grid-template-rows: auto minmax(0, 56vh) 1fr;
-            gap: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
         }
 
+        /* ─── Topbar ─── */
         .topbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 16px;
-            min-height: 78px;
-            padding: 18px 24px;
-            background: var(--card);
-            border: 1px solid rgba(255, 255, 255, 0.72);
+            padding: 18px 28px;
+            background: var(--white);
+            border: 1px solid var(--gray-200);
             border-radius: var(--radius-xl);
-            box-shadow: var(--shadow);
-            backdrop-filter: blur(18px);
+            box-shadow: var(--shadow-md);
         }
 
-        .topbar-copy {
-            min-width: 0;
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
         }
 
-        .eyebrow {
+        .logo-mark {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(37,99,235,.3);
+        }
+
+        .topbar-copy h1 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--gray-900);
+            line-height: 1.2;
+        }
+
+        .topbar-copy p {
+            font-size: 13px;
+            color: var(--gray-500);
+            margin-top: 3px;
+        }
+
+        .topbar-badge {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 6px 10px;
-            margin-bottom: 8px;
+            gap: 6px;
+            padding: 6px 12px;
             border-radius: 999px;
-            background: var(--primary-soft);
-            color: var(--primary);
+            background: var(--blue-light);
+            border: 1px solid var(--blue-mid);
+            color: var(--blue);
             font-size: 12px;
-            font-weight: 700;
+            font-weight: 600;
         }
 
-        .eyebrow::before {
+        .topbar-badge::before {
             content: "";
-            width: 8px;
-            height: 8px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
-            background: var(--primary);
+            background: var(--blue);
+            animation: pulse-dot 2s ease infinite;
         }
 
-        .topbar h1 {
-            font-size: 26px;
-            line-height: 1.1;
-            letter-spacing: -0.02em;
-            margin-bottom: 4px;
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .6; transform: scale(.85); }
         }
 
-        .topbar p {
-            max-width: 760px;
-            color: var(--text-sub);
-            font-size: 13px;
-            line-height: 1.6;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .layout {
-            min-height: 0;
-            height: 100%;
+        /* ─── Main grid ─── */
+        .main-grid {
             display: grid;
-            grid-template-columns: 30% 70%;
+            grid-template-columns: 320px 1fr;
+            gap: 16px;
+            align-items: stretch;
+        }
+
+        @media (max-width: 900px) {
+            .main-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ─── Card ─── */
+        .card {
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid var(--gray-100);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .card-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            background: var(--blue-light);
+            flex-shrink: 0;
+        }
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--gray-800);
+        }
+
+        .card-subtitle {
+            font-size: 12px;
+            color: var(--gray-500);
+            margin-top: 2px;
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        .card-body-fill {
+            padding: 24px;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ─── QR Panel ─── */
+        .qr-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             gap: 14px;
         }
 
-        .panel {
-            background: var(--card);
-            border: 1px solid rgba(255, 255, 255, 0.72);
-            border-radius: var(--radius-xl);
-            box-shadow: var(--shadow);
-            backdrop-filter: blur(18px);
-            overflow: hidden;
-        }
-
-        .left-panel {
-            padding: 18px;
-            display: flex;
-            align-items: stretch;
-            justify-content: center;
-            min-height: 0;
-        }
-
-        .left-inner {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 16px;
-        }
-
-        .left-hint {
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--text-main);
-            line-height: 1.45;
-            text-align: left;
-        }
-
-        .left-main {
-            flex: 1;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 16px;
-        }
-
-        .scan-feedback {
-            display: none;
-            width: 100%;
-            padding: 10px 12px;
-            border-radius: 14px;
-            border: 1px solid rgba(0, 122, 255, 0.16);
-            background: rgba(0, 122, 255, 0.08);
-            color: var(--primary);
-            font-size: 12px;
-            font-weight: 700;
-            text-align: center;
-        }
-
-        .scan-feedback.show {
-            display: block;
-        }
-
-        .qr-panel {
-            width: clamp(220px, 18vw, 300px);
-            aspect-ratio: 1;
-            max-height: min(38vh, 300px);
-            border-radius: 24px;
-            border: 1.5px dashed rgba(0, 122, 255, 0.26);
-            background: linear-gradient(180deg, #FFFFFF 0%, #F6FAFF 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .qr-frame {
             position: relative;
+            width: 170px;
+            height: 170px;
+            border-radius: var(--radius-xl);
+            background: linear-gradient(180deg, #FAFCFF 0%, #F0F6FF 100%);
+            border: 2px dashed var(--blue-mid);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
-            padding: 18px;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
         }
 
-        .qr-panel::before {
+        .qr-bottom-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .qr-frame::before {
             content: "";
             position: absolute;
             inset: 0;
-            background: radial-gradient(circle at top, rgba(0, 122, 255, 0.08), transparent 56%);
+            background: radial-gradient(circle at top, rgba(37,99,235,.06), transparent 60%);
             pointer-events: none;
         }
 
-        .qr-loading {
-            position: relative;
-            z-index: 1;
+        /* Corner brackets */
+        .qr-frame::after {
+            content: "";
+            position: absolute;
+            inset: 10px;
+            border-radius: 10px;
+            background: transparent;
+            box-shadow:
+                -2px -2px 0 2px var(--blue) inset,
+                2px 2px 0 2px var(--blue) inset;
+            opacity: .15;
+            pointer-events: none;
+        }
+
+        .qr-loading-inner {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             gap: 12px;
-            text-align: center;
-        }
-
-        .qr-placeholder-icon {
-            width: 86px;
-            height: 86px;
-            border-radius: 22px;
-            background: linear-gradient(135deg, rgba(0, 122, 255, 0.14), rgba(0, 122, 255, 0.06));
-            border: 1px solid rgba(0, 122, 255, 0.16);
             position: relative;
+            z-index: 1;
         }
 
-        .qr-placeholder-icon::before,
-        .qr-placeholder-icon::after {
-            content: "";
-            position: absolute;
-            inset: 17px;
-            border: 3px solid rgba(0, 122, 255, 0.38);
-            border-radius: 12px;
+        .qr-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--blue-mid);
+            border-top-color: var(--blue);
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
         }
 
-        .qr-placeholder-icon::after {
-            inset: 30px;
-            border-width: 2px;
-            border-color: rgba(0, 122, 255, 0.26);
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        .loading-text {
-            color: var(--text-sub);
+        .qr-loading-text {
             font-size: 13px;
-            line-height: 1.55;
+            color: var(--gray-500);
+            text-align: center;
         }
 
         #feishu-qrcode {
             position: relative;
             z-index: 1;
             display: none;
+            transition: .25s ease;
         }
 
         #feishu-qrcode img {
             display: block;
-            max-width: 100%;
-            height: auto;
-            transition: .2s ease;
+            border-radius: var(--radius-md);
+            width: 150px;
+            height: 150px;
         }
 
         #feishu-qrcode.logged-in img {
-            opacity: 0.2;
-            filter: blur(1px);
-            transform: scale(0.98);
+            opacity: .15;
+            filter: blur(2px);
+            transform: scale(.96);
         }
 
         .qr-success-overlay {
@@ -273,342 +315,323 @@
             display: none;
             align-items: center;
             justify-content: center;
-            background: rgba(17, 24, 39, 0.18);
+            background: rgba(240,253,244,.9);
             z-index: 2;
-            pointer-events: none;
+            border-radius: var(--radius-xl);
         }
 
-        .qr-success-overlay.show {
+        .qr-success-overlay.show { display: flex; }
+
+        .qr-success-badge {
             display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .qr-success-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #16A34A, #15803D);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            box-shadow: 0 8px 20px rgba(22,163,74,.3);
         }
 
         .qr-success-text {
-            padding: 10px 16px;
-            border-radius: 16px;
-            background: rgba(240, 253, 244, 0.96);
-            border: 1px solid rgba(52, 199, 89, 0.28);
-            color: #15803D;
-            font-size: 22px;
-            font-weight: 800;
-            box-shadow: 0 16px 34px rgba(52, 199, 89, 0.18);
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--green);
         }
 
-        .left-actions {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
+        /* Status chip */
         .status-chip {
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            min-width: 132px;
-            padding: 10px 14px;
+            gap: 7px;
+            padding: 8px 16px;
             border-radius: 999px;
-            background: var(--warning-soft);
-            border: 1px solid rgba(142, 142, 147, 0.18);
-            color: #6B7280;
             font-size: 13px;
-            font-weight: 700;
-            white-space: nowrap;
+            font-weight: 600;
+            border: 1px solid transparent;
+            transition: all .2s;
         }
+
+        .status-chip::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-chip.idle {
+            background: var(--gray-100);
+            border-color: var(--gray-200);
+            color: var(--gray-500);
+        }
+        .status-chip.idle::before { background: var(--gray-400); }
 
         .status-chip.info {
-            background: var(--primary-soft);
-            border-color: rgba(0, 122, 255, 0.18);
-            color: var(--primary);
+            background: var(--blue-light);
+            border-color: var(--blue-mid);
+            color: var(--blue);
         }
+        .status-chip.info::before { background: var(--blue); animation: pulse-dot 1.5s ease infinite; }
 
         .status-chip.success {
-            background: var(--success-soft);
-            border-color: rgba(52, 199, 89, 0.18);
-            color: #1E9F45;
+            background: var(--green-light);
+            border-color: var(--green-mid);
+            color: var(--green);
         }
+        .status-chip.success::before { background: var(--green); }
 
-        .qr-actions {
-            display: flex;
-            justify-content: center;
+        .status-chip.error {
+            background: var(--red-light);
+            border-color: #FECACA;
+            color: var(--red);
         }
+        .status-chip.error::before { background: var(--red); }
 
+        /* Scan feedback */
+        .scan-feedback {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: var(--radius-md);
+            background: var(--blue-light);
+            border: 1px solid var(--blue-mid);
+            color: var(--blue);
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+            display: none;
+        }
+        .scan-feedback.show { display: block; }
+
+        /* Refresh btn */
         .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 9px 18px;
             border: none;
-            border-radius: 14px;
-            padding: 11px 18px;
-            font-size: 14px;
-            font-weight: 700;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            font-weight: 600;
             cursor: pointer;
-            transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease, background .18s ease;
+            transition: all .18s ease;
+            text-decoration: none;
             white-space: nowrap;
-        }
-
-        .btn:hover:not(:disabled) {
-            transform: translateY(-1px);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #007AFF, #0062CC);
-            color: #fff;
-            box-shadow: 0 14px 28px rgba(0, 122, 255, 0.22);
-        }
-
-        .btn-primary:hover:not(:disabled) {
-            box-shadow: 0 18px 36px rgba(0, 122, 255, 0.28);
-        }
-
-        .btn-secondary {
-            background: rgba(148, 163, 184, 0.14);
-            color: var(--text-main);
-        }
-
-        .btn-secondary:hover:not(:disabled) {
-            background: rgba(148, 163, 184, 0.24);
         }
 
         .btn:disabled {
-            opacity: 0.55;
+            opacity: .5;
             cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
+            transform: none !important;
+            box-shadow: none !important;
         }
 
-        .right-panel {
-            padding: 18px 20px;
-            min-height: 0;
+        .btn-primary {
+            background: linear-gradient(135deg, #2563EB, #1D4ED8);
+            color: var(--white);
+            box-shadow: 0 4px 14px rgba(37,99,235,.3);
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(37,99,235,.38);
+        }
+        .btn-primary:active:not(:disabled) { transform: translateY(0); }
+
+        .btn-ghost {
+            background: var(--gray-100);
+            color: var(--gray-700);
+            border: 1px solid var(--gray-200);
+        }
+        .btn-ghost:hover:not(:disabled) {
+            background: var(--gray-200);
+        }
+
+        .btn-sm {
+            padding: 7px 14px;
+            font-size: 12px;
+        }
+
+        /* ─── Steps panel ─── */
+        .steps-grid {
             display: grid;
-            grid-template-rows: auto minmax(0, 1fr);
-            gap: 12px;
-        }
-
-        .right-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-        }
-
-        .right-head h2 {
-            font-size: 22px;
-            letter-spacing: -0.02em;
-        }
-
-        .manage-link {
-            display: none;
-            align-items: center;
+            grid-template-columns: 1fr 1fr;
+            grid-auto-rows: 1fr;
             gap: 8px;
-            padding: 10px 14px;
-            border-radius: 14px;
-            background: var(--primary-soft);
-            color: var(--primary);
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 700;
-            white-space: nowrap;
-        }
-
-        .manage-link:hover {
-            background: rgba(0, 122, 255, 0.18);
-        }
-
-        .steps {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            grid-auto-rows: minmax(170px, 1fr);
-            gap: 12px;
-            min-height: 0;
-            align-items: stretch;
         }
 
         .step {
-            min-height: 0;
-            height: 100%;
-            display: grid;
-            grid-template-columns: 40px minmax(0, 1fr);
+            padding: 10px 12px;
+            border-radius: var(--radius-md);
+            border: 1.5px solid var(--gray-200);
+            background: var(--white);
+            transition: all .2s ease;
+            display: flex;
             gap: 9px;
-            align-items: flex-start;
-            padding: 12px;
-            border-radius: 16px;
-            border: 1px solid var(--line);
-            background: rgba(255, 255, 255, 0.84);
-            transition: .2s ease;
-            overflow: hidden;
+            align-items: center;
+            min-height: 0;
         }
 
         .step.pending {
-            border-color: rgba(148, 163, 184, 0.16);
+            border-color: var(--gray-200);
+            background: var(--gray-50);
         }
 
         .step.active {
-            border-color: rgba(0, 122, 255, 0.22);
-            background: linear-gradient(180deg, rgba(239, 247, 255, 0.96), rgba(255, 255, 255, 0.95));
-            box-shadow: 0 14px 32px rgba(0, 122, 255, 0.10);
+            border-color: #BFDBFE;
+            background: linear-gradient(180deg, #EFF6FF 0%, #F8FBFF 100%);
+            box-shadow: 0 4px 16px rgba(37,99,235,.10);
         }
 
         .step.done {
-            border-color: rgba(52, 199, 89, 0.22);
-            background: linear-gradient(180deg, rgba(240, 253, 244, 0.96), rgba(255, 255, 255, 0.95));
+            border-color: var(--green-mid);
+            background: linear-gradient(180deg, #F0FDF4 0%, #FAFFFE 100%);
         }
 
         .step.error {
-            border-color: rgba(255, 59, 48, 0.22);
-            background: linear-gradient(180deg, rgba(255, 242, 241, 0.96), rgba(255, 255, 255, 0.95));
+            border-color: #FECACA;
+            background: linear-gradient(180deg, #FEF2F2 0%, #FFFAFA 100%);
         }
 
         .step-marker {
-            width: 40px;
-            height: 40px;
-            border-radius: 13px;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(148, 163, 184, 0.10);
-            border: 1px solid rgba(148, 163, 184, 0.16);
-            color: var(--warning);
-            font-size: 16px;
+            font-size: 13px;
             font-weight: 800;
-            line-height: 1;
+            flex-shrink: 0;
+            transition: all .2s;
+        }
+
+        .step.pending .step-marker {
+            background: var(--gray-100);
+            color: var(--gray-400);
+            border: 1px solid var(--gray-200);
         }
 
         .step.active .step-marker {
-            background: linear-gradient(135deg, #007AFF, #0062CC);
-            border-color: transparent;
-            color: #fff;
+            background: linear-gradient(135deg, #2563EB, #1D4ED8);
+            color: var(--white);
+            box-shadow: 0 4px 12px rgba(37,99,235,.3);
         }
 
         .step.done .step-marker {
-            background: linear-gradient(135deg, #34C759, #28A745);
-            border-color: transparent;
-            color: #fff;
+            background: linear-gradient(135deg, #16A34A, #15803D);
+            color: var(--white);
+            box-shadow: 0 4px 12px rgba(22,163,74,.25);
         }
 
         .step.error .step-marker {
-            background: linear-gradient(135deg, #FF3B30, #E53935);
-            border-color: transparent;
-            color: #fff;
+            background: linear-gradient(135deg, #DC2626, #B91C1C);
+            color: var(--white);
+            box-shadow: 0 4px 12px rgba(220,38,38,.25);
         }
 
         .step-content {
+            flex: 1;
             min-width: 0;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            gap: 5px;
-            overflow: hidden;
+            gap: 2px;
         }
 
         .step-title {
-            font-size: 16px;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .step-title-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            min-width: 0;
-        }
-
-        .step-bot-chip {
-            max-width: 42%;
-            padding: 4px 10px;
-            border-radius: 999px;
-            background: rgba(0, 122, 255, 0.10);
-            color: var(--primary);
             font-size: 12px;
             font-weight: 700;
+            color: var(--gray-800);
+            line-height: 1.3;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
+
+        .step.pending .step-title { color: var(--gray-400); }
 
         .step-desc {
-            color: var(--text-sub);
             font-size: 11px;
-            line-height: 1.45;
+            color: var(--gray-500);
+            line-height: 1.4;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        .confirm-box {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .confirm-desc {
-            min-height: 18px;
-        }
-
-        #confirm-send-btn {
-            align-self: flex-start;
-        }
-
-        .cmd-preview {
-            flex: 1 1 auto;
-            min-width: 0;
-            padding: 9px 11px;
-            border-radius: 12px;
-            background: linear-gradient(180deg, #111827, #0F172A);
-            color: #E5E7EB;
-            border: 1px solid rgba(51, 65, 85, 0.95);
-            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-            font-size: 11px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .result-row {
-            display: flex;
+        .step-bot-name {
+            display: inline-flex;
             align-items: center;
-            gap: 10px;
-            min-width: 0;
-        }
-
-        .ip-panel {
-            display: none;
-            flex: 1 1 auto;
-            min-width: 0;
-            padding: 14px 15px;
-            border-radius: 18px;
-            background: linear-gradient(135deg, #34C759, #28A745);
-            color: #fff;
-            box-shadow: 0 14px 28px rgba(52, 199, 89, 0.18);
-        }
-
-        .ip-label {
-            font-size: 11px;
-            letter-spacing: 0.16em;
-            text-transform: uppercase;
-            opacity: 0.88;
-            margin-bottom: 6px;
-        }
-
-        .ip-value {
-            font-size: 24px;
-            font-weight: 800;
-            line-height: 1.1;
-            white-space: nowrap;
+            gap: 4px;
+            padding: 2px 7px;
+            border-radius: 999px;
+            background: var(--blue-light);
+            color: var(--blue);
+            font-size: 10px;
+            font-weight: 600;
+            max-width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
-        .log-box {
+        /* Command preview */
+        .cmd-preview {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 2px 7px;
+            border-radius: 5px;
+            background: #0F172A;
+            border: 1px solid #1E293B;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 10px;
+            color: #7DD3FC;
+            overflow: hidden;
+            max-width: 100%;
+        }
+
+        .cmd-preview::before {
+            content: "$";
+            color: #4ADE80;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* IP value inline */
+        #ip-value {
+            font-weight: 700;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        /* Manage link */
+        .manage-link {
             display: none;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: var(--radius-md);
+            background: var(--blue-light);
+            color: var(--blue);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid var(--blue-mid);
+            transition: background .15s;
         }
+        .manage-link:hover { background: #DBEAFE; }
 
-        .log-line {
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
 
+
+        /* ─── Modal ─── */
         .modal-mask {
             position: fixed;
             inset: 0;
@@ -616,300 +639,228 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
-            background: rgba(15, 23, 42, 0.56);
-            backdrop-filter: blur(8px);
-            z-index: 40;
+            background: rgba(15,23,42,.55);
+            backdrop-filter: blur(6px);
+            z-index: 50;
         }
+        .modal-mask.show { display: flex; }
 
         .modal {
-            width: min(520px, 100%);
-            padding: 24px;
-            border-radius: 24px;
-            background: rgba(255, 255, 255, 0.98);
-            border: 1px solid rgba(255, 255, 255, 0.78);
-            box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+            width: min(480px, 100%);
+            background: var(--white);
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow-xl);
+            border: 1px solid var(--gray-200);
+            overflow: hidden;
         }
 
-        .modal h3 {
-            font-size: 22px;
-            margin-bottom: 10px;
+        .modal-header {
+            padding: 24px 24px 0;
         }
 
-        .modal p {
-            color: var(--text-sub);
-            font-size: 14px;
-            line-height: 1.7;
-        }
-
-        .modal-actions {
-            margin-top: 16px;
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-        }
-
-        .layout-lab-toggle {
-            position: fixed;
-            right: 20px;
-            bottom: 20px;
-            z-index: 45;
-            padding: 10px 14px;
-            border-radius: 12px;
-            border: 1px solid rgba(0, 122, 255, 0.3);
-            background: rgba(255, 255, 255, 0.95);
-            color: var(--primary);
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: 0 10px 24px rgba(0, 122, 255, 0.18);
-        }
-
-        .layout-lab-panel {
-            position: fixed;
-            right: 20px;
-            bottom: 72px;
-            width: min(340px, calc(100vw - 40px));
-            padding: 14px;
-            border-radius: 14px;
-            border: 1px solid rgba(148, 163, 184, 0.24);
-            background: rgba(255, 255, 255, 0.96);
-            box-shadow: 0 18px 34px rgba(15, 23, 42, 0.18);
-            z-index: 45;
-            display: none;
-        }
-
-        .layout-lab-panel.show {
-            display: block;
-        }
-
-        .lab-title {
-            font-size: 14px;
-            font-weight: 800;
-            margin-bottom: 8px;
-        }
-
-        .lab-row {
+        .modal-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: var(--radius-lg);
+            background: var(--amber-light);
+            border: 1px solid #FDE68A;
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 16px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--gray-900);
             margin-bottom: 8px;
         }
 
-        .lab-row label {
-            width: 86px;
-            color: var(--text-sub);
-            font-size: 12px;
-            font-weight: 600;
+        .modal-desc {
+            font-size: 14px;
+            color: var(--gray-500);
+            line-height: 1.6;
         }
 
-        .lab-row select,
-        .lab-row input,
-        .lab-row textarea {
-            flex: 1;
+        .modal-body {
+            padding: 16px 24px;
         }
 
-        .lab-row input[type="range"] {
-            accent-color: var(--primary);
-        }
-
-        .lab-row-text {
-            align-items: flex-start;
-        }
-
-        .lab-row textarea {
-            resize: vertical;
-            min-height: 64px;
-            border: 1px solid rgba(148, 163, 184, 0.3);
-            border-radius: 8px;
-            padding: 8px 10px;
-            font-size: 12px;
-            font-family: inherit;
-        }
-
-        .lab-value {
-            min-width: 52px;
-            text-align: right;
-            font-size: 12px;
-            color: var(--text-main);
-            font-weight: 700;
-        }
-
-        .lab-actions {
+        .modal-footer {
+            padding: 0 24px 24px;
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 8px;
+            justify-content: flex-end;
+            gap: 10px;
         }
 
-        .lab-btn {
-            border: 1px solid rgba(148, 163, 184, 0.24);
-            border-radius: 10px;
-            background: #fff;
-            font-size: 12px;
-            font-weight: 700;
-            padding: 7px 10px;
-            cursor: pointer;
+        /* ─── Divider ─── */
+        .divider {
+            height: 1px;
+            background: var(--gray-100);
+            margin: 16px 0;
         }
 
-        .layout-lab-on [data-edit-key] {
-            cursor: grab;
-            outline: 1px dashed rgba(0, 122, 255, 0.35);
-            outline-offset: 2px;
-            user-select: none;
-        }
+        /* ─── Scrollbar ─── */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 999px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gray-400); }
 
-        .layout-lab-on [data-edit-key].is-dragging {
-            cursor: grabbing;
-        }
-
-        .layout-lab-on [data-edit-key].is-selected {
-            outline: 2px solid rgba(0, 122, 255, 0.65);
-        }
+        /* ─── Utility ─── */
+        .hidden { display: none !important; }
+        .flex-center { display: flex; align-items: center; justify-content: center; }
+        .gap-8 { gap: 8px; }
+        .mt-8 { margin-top: 8px; }
+        .mt-12 { margin-top: 12px; }
+        .text-sm { font-size: 13px; }
+        .text-xs { font-size: 12px; }
+        .text-muted { color: var(--gray-500); }
+        .font-bold { font-weight: 700; }
     </style>
 </head>
 <body>
-    <div class="shell">
-        <div class="topbar">
-            <div class="topbar-copy">
-                <div class="eyebrow">OpenClaw · Feishu Connect</div>
-                <h1 id="edit-title" data-edit-key="title">飞书扫码验证工作台</h1>
-                <p id="edit-subtitle" data-edit-key="subtitle">左侧展示完整二维码，右侧保留 4 个核心步骤，下方区域留空待补充内容。</p>
-            </div>
-        </div>
+    <div class="page">
 
-        <div class="layout">
-            <section class="panel left-panel" id="entry-feishu">
-                <div class="left-inner">
-                    <div class="left-hint" id="edit-left-hint" data-edit-key="leftHint">第一步：用飞书APP扫码完成操作</div>
-                    <div class="left-main">
+        <!-- ─── Topbar ─── -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <div class="logo-mark">🦐</div>
+                <div class="topbar-copy">
+                    <h1>OpenClaw 企微接入工作台</h1>
+                    <p>通过飞书扫码完成 OpenClaw 通信通道验证，自动获取服务器公网 IP</p>
+                </div>
+            </div>
+            <div class="topbar-badge">飞书接入流程</div>
+        </header>
+
+        <!-- ─── Main ─── -->
+        <div class="main-grid">
+
+            <!-- Left: QR Code -->
+            <div class="card" style="display:flex;flex-direction:column;">
+                <div class="card-header">
+                    <div class="card-header-left">
+                        <div class="card-icon">🐦</div>
+                        <div>
+                            <div class="card-title">第一步：使用飞书 App 扫描下方二维码</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body-fill">
+                    <div class="qr-wrap">
+
                         <div class="scan-feedback" id="scan-feedback"></div>
 
-                        <div class="qr-panel" id="qr-panel">
-                            <div id="feishu-loading" class="qr-loading">
-                                <div class="qr-placeholder-icon"></div>
-                                <div class="loading-text">正在生成飞书二维码...</div>
+                        <div class="qr-frame">
+                            <div id="feishu-loading" class="qr-loading-inner">
+                                <div class="qr-spinner"></div>
+                                <div class="qr-loading-text">正在生成二维码...</div>
                             </div>
                             <div id="feishu-qrcode"></div>
                             <div id="qr-success-overlay" class="qr-success-overlay">
-                                <div class="qr-success-text">登录成功</div>
-                            </div>
-                        </div>
-
-                        <div class="left-actions">
-                            <div id="feishu-status" class="status-chip">等待扫码</div>
-                            <button class="btn btn-primary" id="refresh-btn" onclick="initFeishuQrcode()">重新生成二维码</button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="panel right-panel" id="detail-feishu">
-                <div class="right-head">
-                    <h2 id="edit-right-title" data-edit-key="rightTitle">核心流程执行进展</h2>
-                    <a id="manage-link" class="manage-link" href="#" target="_blank" rel="noreferrer">打开机器人后台</a>
-                </div>
-
-                <div class="steps">
-                    <div class="step pending" id="step-feishu">
-                        <div class="step-marker">1</div>
-                        <div class="step-content">
-                            <div class="step-title">① 登录飞书成功</div>
-                            <div class="step-desc">等待用户扫码并在飞书中确认登录。</div>
-                        </div>
-                    </div>
-
-                    <div class="step pending" id="step-bot">
-                        <div class="step-marker">2</div>
-                        <div class="step-content">
-                            <div class="step-title">② 找到 openclaw 机器人</div>
-                            <div class="step-meta">当前机器人：<span id="bot-name">待匹配</span></div>
-                            <div class="step-desc">登录成功后自动识别并验证通信通道是否可用。</div>
-                        </div>
-                    </div>
-
-                    <div class="step pending" id="step-command">
-                        <div class="step-marker">3</div>
-                        <div class="step-content">
-                            <div class="step-title">③ 待用户确认：发送指令</div>
-                            <div class="confirm-box" id="confirm-box">
-                                <div class="cmd-preview">执行 curl ifconfig.me</div>
-                                <div class="command-row">
-                                    <div class="step-desc">步骤①②成功后方可点击确认发送指令。</div>
-                                    <button class="btn btn-primary" id="confirm-send-btn" onclick="openConfirmModal()" disabled>确认发送指令</button>
+                                <div class="qr-success-badge">
+                                    <div class="qr-success-icon">✓</div>
+                                    <div class="qr-success-text">登录成功</div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="step pending" id="step-ip">
-                        <div class="step-marker">4</div>
-                        <div class="step-content">
-                            <div class="step-title">④ 成功获取到公网 IP</div>
-                            <div class="result-row">
-                                <div class="ip-panel" id="ip-panel">
-                                    <div class="ip-label">公网 IP</div>
-                                    <div class="ip-value" id="ip-value">-</div>
-                                </div>
-                            </div>
-                            <div class="step-desc">等待命令执行并返回公网 IP 结果。</div>
+                        <div class="qr-bottom-row">
+                            <div id="feishu-status" class="status-chip idle">等待扫码</div>
+                            <button class="btn btn-ghost btn-sm" onclick="initFeishuQrcode()">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                                重新生成
+                            </button>
                         </div>
+
                     </div>
                 </div>
+            </div>
 
-            </section>
+            <!-- Right: Steps -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-header-left">
+                        <div class="card-icon" style="background: #F0FDF4;">📋</div>
+                        <div>
+                            <div class="card-title">核心流程执行进展</div>
+                        </div>
+                    </div>
+                    <a id="manage-link" class="manage-link" href="#" target="_blank" rel="noreferrer">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        打开机器人后台
+                    </a>
+                </div>
+                <div class="card-body">
+
+                    <div class="steps-grid">
+
+                        <!-- Step 1 -->
+                        <div class="step pending" id="step-feishu">
+                            <div class="step-marker">1</div>
+                            <div class="step-content">
+                                <div class="step-title">飞书扫码登陆</div>
+                                <div class="step-desc" id="step-feishu-desc">等待飞书 App 扫码确认</div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div class="step pending" id="step-bot">
+                            <div class="step-marker">2</div>
+                            <div class="step-content">
+                                <div class="step-title">识别 OpenClaw 机器人</div>
+                                <div class="step-desc" id="step-bot-desc">等待发起 OpenClaw 机器人识别</div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div class="step pending" id="step-command">
+                            <div class="step-marker">3</div>
+                            <div class="step-content">
+                                <div class="step-title">向 OpenClaw 发送指令</div>
+                                <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
+                                    <div class="cmd-preview">curl ifconfig.me</div>
+                                    <button class="btn btn-primary" style="padding:4px 12px;font-size:11px;font-weight:700;border-radius:6px;" id="confirm-send-btn" onclick="openConfirmModal()" disabled>点击发送</button>
+                                </div>
+                                <div class="step-desc" style="margin-top:3px;color:var(--amber);white-space:normal;">&#9432; 该命令用于获取 OpenClaw 部署机公网 IP，配置微信通道用</div>
+                            </div>
+                        </div>
+
+                        <!-- Step 4 -->
+                        <div class="step pending" id="step-ip">
+                            <div class="step-marker">4</div>
+                            <div class="step-content">
+                                <div class="step-title">获取 OpenClaw 部署机公网 IP</div>
+                                <div class="step-desc" id="step-ip-desc">IP 地址：<span id="ip-value">等待获取...</span></div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- 隐藏日志容器（JS 仍可写入，但不展示） -->
+                    <div id="log-box" style="display:none;"></div>
+
+                </div>
+            </div>
+
         </div>
     </div>
 
-    <button type="button" id="layout-lab-toggle" class="layout-lab-toggle">开启拖拽微调</button>
-    <div class="layout-lab-panel" id="layout-lab-panel">
-        <div class="lab-title">拖拽微调面板</div>
-        <div class="lab-row">
-            <label for="lab-target">当前元素</label>
-            <select id="lab-target"></select>
-        </div>
-        <div class="lab-row">
-            <label for="lab-font">字号</label>
-            <input id="lab-font" type="range" min="12" max="40" step="1">
-            <div class="lab-value" id="lab-font-value">-</div>
-        </div>
-        <div class="lab-row">
-            <label for="lab-x">水平偏移</label>
-            <input id="lab-x" type="range" min="-200" max="200" step="1">
-            <div class="lab-value" id="lab-x-value">0px</div>
-        </div>
-        <div class="lab-row">
-            <label for="lab-y">垂直偏移</label>
-            <input id="lab-y" type="range" min="-200" max="200" step="1">
-            <div class="lab-value" id="lab-y-value">0px</div>
-        </div>
-        <div class="lab-row">
-            <label for="lab-width">宽度</label>
-            <input id="lab-width" type="range" min="80" max="1200" step="1">
-            <div class="lab-value" id="lab-width-value">-</div>
-        </div>
-        <div class="lab-row">
-            <label for="lab-height">高度</label>
-            <input id="lab-height" type="range" min="32" max="800" step="1">
-            <div class="lab-value" id="lab-height-value">-</div>
-        </div>
-        <div class="lab-row lab-row-text">
-            <label for="lab-text">文字内容</label>
-            <textarea id="lab-text" rows="3" placeholder="在这里修改选中元素文字"></textarea>
-        </div>
-        <div class="lab-actions">
-            <button type="button" class="lab-btn" id="lab-copy">复制配置JSON</button>
-            <button type="button" class="lab-btn" id="lab-reset-one">重置当前元素</button>
-            <button type="button" class="lab-btn" id="lab-reset-all">重置全部</button>
-        </div>
-    </div>
-
+    <!-- ─── Confirm Modal ─── -->
     <div class="modal-mask" id="confirm-modal">
         <div class="modal">
-            <h3>确认发送指令</h3>
-            <p>确认后会向 OpenClaw 机器人发送固定命令 <code>执行 curl ifconfig.me</code>，用于获取公网 IP。</p>
-            <div class="cmd-preview">执行 curl ifconfig.me</div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeConfirmModal()">取消</button>
+            <div class="modal-header">
+                <div class="modal-icon">⚡</div>
+                <div class="modal-title">确认发送指令</div>
+                <div class="modal-desc">确认后将向 OpenClaw 机器人发送以下命令，用于获取服务器公网 IP 地址。</div>
+            </div>
+            <div class="modal-body">
+                <div class="cmd-preview">curl ifconfig.me</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeConfirmModal()">取消</button>
                 <button class="btn btn-primary" id="modal-confirm-btn" onclick="confirmSendCommand()">确认发送</button>
             </div>
         </div>
@@ -918,457 +869,97 @@
     <script>
         let feishuSessionId = null;
         let pollTimer = null;
+        let logOpen = false;
         let flowState = {
-            appId: '',
-            appSecret: '',
-            botName: '',
-            manageUrl: '',
-            openId: '',
-            ip: ''
+            appId: '', appSecret: '', botName: '',
+            manageUrl: '', openId: '', ip: ''
         };
 
-        const LAYOUT_LAB_STORAGE_KEY = 'feishu-flow-layout-lab-v3';
-        let layoutLabEnabled = false;
-        let layoutLabSelectedKey = '';
-        let layoutLabDrag = null;
-        let layoutLabAutoIndex = 1;
-        const layoutLabElements = {};
-        const layoutLabMeta = {};
-        const layoutLabDefaults = {};
-        let layoutLabState = {};
-
+        // ─── Init ───
         document.addEventListener('DOMContentLoaded', () => {
-            initLayoutLab();
-            addLog('页面已加载：飞书入口已就绪。');
+            addLog('页面已加载，飞书入口就绪。');
             initFeishuQrcode();
         });
 
-        function initLayoutLab() {
-            collectLayoutLabElements();
+        // ─── Log (隐藏模式，仅内部记录) ───
+        function toggleLog() { /* 日志已隐藏 */ }
 
-            try {
-                const saved = localStorage.getItem(LAYOUT_LAB_STORAGE_KEY);
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    if (parsed && typeof parsed === 'object') {
-                        layoutLabState = parsed;
-                    }
-                }
-            } catch (e) {
-                layoutLabState = {};
-            }
-
-            Object.keys(layoutLabElements).forEach((key) => {
-                const base = layoutLabDefaults[key];
-                const current = layoutLabState[key] || {};
-                layoutLabState[key] = {
-                    x: Number.isFinite(Number(current.x)) ? Number(current.x) : base.x,
-                    y: Number.isFinite(Number(current.y)) ? Number(current.y) : base.y,
-                    width: Number.isFinite(Number(current.width)) ? Number(current.width) : base.width,
-                    height: Number.isFinite(Number(current.height)) ? Number(current.height) : base.height,
-                    fontSize: Number.isFinite(Number(current.fontSize)) ? Number(current.fontSize) : base.fontSize,
-                    text: typeof current.text === 'string' ? current.text : base.text
-                };
-                applyLayoutLabKey(key);
-            });
-
-            layoutLabSelectedKey = Object.keys(layoutLabElements)[0] || '';
-            bindLayoutLabEvents();
-            syncLayoutLabControls();
-        }
-
-        function collectLayoutLabElements() {
-            const blockedSelectors = '#layout-lab-panel, #layout-lab-toggle, script, style';
-            document.querySelectorAll('body *').forEach((el) => {
-                if (el.matches(blockedSelectors) || el.closest('#layout-lab-panel')) return;
-
-                const isLeafText = isLeafTextElement(el);
-                const isBox = isLayoutBoxElement(el);
-                if (!isLeafText && !isBox) return;
-
-                const text = (el.textContent || '').trim();
-                const rect = el.getBoundingClientRect();
-                const width = Math.max(32, Math.round(rect.width || el.offsetWidth || 120));
-                const height = Math.max(24, Math.round(rect.height || el.offsetHeight || 40));
-
-                let key = el.dataset.editKey;
-                if (!key) {
-                    key = `autoText${layoutLabAutoIndex++}`;
-                    el.dataset.editKey = key;
-                }
-
-                layoutLabElements[key] = el;
-                layoutLabMeta[key] = {
-                    type: isBox ? 'box' : 'text',
-                    label: buildLayoutLabLabel(el, text, isBox ? 'box' : 'text')
-                };
-                layoutLabDefaults[key] = {
-                    x: 0,
-                    y: 0,
-                    width,
-                    height,
-                    fontSize: Math.round(parseFloat(getComputedStyle(el).fontSize) || 16),
-                    text
-                };
-            });
-
-            refreshLayoutLabTargetOptions();
-        }
-
-        function isLeafTextElement(el) {
-            if (el.childElementCount > 0) return false;
-            const text = (el.textContent || '').trim();
-            return Boolean(text);
-        }
-
-        function isLayoutBoxElement(el) {
-            const tag = el.tagName.toLowerCase();
-            if (['section', 'article', 'aside'].includes(tag)) return true;
-            const name = `${el.id || ''} ${typeof el.className === 'string' ? el.className : ''}`.toLowerCase();
-            return /(panel|step|box|modal|topbar|layout|shell|row|actions|preview|status|head)/.test(name);
-        }
-
-        function buildLayoutLabLabel(el, text, type = 'text') {
-            const idPart = el.id ? `#${el.id}` : '';
-            const classPart = !el.id && el.className && typeof el.className === 'string'
-                ? `.${el.className.trim().split(/\s+/).slice(0, 1).join('')}`
-                : '';
-            const shortText = (text || '').replace(/\s+/g, ' ').slice(0, 18);
-            const typeLabel = type === 'box' ? '框' : '字';
-            return `${typeLabel} · ${el.tagName.toLowerCase()}${idPart || classPart} · ${shortText || '(无文字)'}`;
-        }
-
-        function refreshLayoutLabTargetOptions() {
-            const targetSelect = document.getElementById('lab-target');
-            targetSelect.innerHTML = '';
-            Object.keys(layoutLabElements).forEach((key) => {
-                const option = document.createElement('option');
-                option.value = key;
-                option.textContent = layoutLabMeta[key]?.label || key;
-                targetSelect.appendChild(option);
-            });
-        }
-
-        function bindLayoutLabEvents() {
-            const toggleBtn = document.getElementById('layout-lab-toggle');
-            const panel = document.getElementById('layout-lab-panel');
-            const targetSelect = document.getElementById('lab-target');
-            const fontInput = document.getElementById('lab-font');
-            const xInput = document.getElementById('lab-x');
-            const yInput = document.getElementById('lab-y');
-            const textInput = document.getElementById('lab-text');
-            const copyBtn = document.getElementById('lab-copy');
-            const resetOneBtn = document.getElementById('lab-reset-one');
-            const resetAllBtn = document.getElementById('lab-reset-all');
-
-            toggleBtn.addEventListener('click', () => {
-                layoutLabEnabled = !layoutLabEnabled;
-                document.body.classList.toggle('layout-lab-on', layoutLabEnabled);
-                panel.classList.toggle('show', layoutLabEnabled);
-                toggleBtn.textContent = layoutLabEnabled ? '退出拖拽微调' : '开启拖拽微调';
-                if (!layoutLabEnabled) {
-                    clearLayoutLabSelection();
-                } else {
-                    markLayoutLabSelection();
-                }
-            });
-
-            targetSelect.addEventListener('change', () => {
-                layoutLabSelectedKey = targetSelect.value;
-                markLayoutLabSelection();
-                syncLayoutLabControls();
-            });
-
-            fontInput.addEventListener('input', () => {
-                updateLayoutLabValue(layoutLabSelectedKey, 'fontSize', Number(fontInput.value));
-            });
-
-            xInput.addEventListener('input', () => {
-                updateLayoutLabValue(layoutLabSelectedKey, 'x', Number(xInput.value));
-            });
-
-            yInput.addEventListener('input', () => {
-                updateLayoutLabValue(layoutLabSelectedKey, 'y', Number(yInput.value));
-            });
-
-            widthInput.addEventListener('input', () => {
-                updateLayoutLabValue(layoutLabSelectedKey, 'width', Number(widthInput.value));
-            });
-
-            heightInput.addEventListener('input', () => {
-                updateLayoutLabValue(layoutLabSelectedKey, 'height', Number(heightInput.value));
-            });
-
-            textInput.addEventListener('input', () => {
-                updateLayoutLabText(layoutLabSelectedKey, textInput.value, false);
-            });
-
-            textInput.addEventListener('change', () => {
-                updateLayoutLabText(layoutLabSelectedKey, textInput.value, true);
-            });
-
-            copyBtn.addEventListener('click', async () => {
-                const text = JSON.stringify(layoutLabState, null, 2);
-                try {
-                    await navigator.clipboard.writeText(text);
-                    addLog('已复制布局配置 JSON，可直接发给我固化。', 'success');
-                } catch (e) {
-                    addLog('复制失败，请手动复制控制台中的配置。', 'warn');
-                    console.log('layoutLabState=', layoutLabState);
-                }
-            });
-
-            resetOneBtn.addEventListener('click', () => {
-                const key = layoutLabSelectedKey;
-                if (!layoutLabDefaults[key]) return;
-                layoutLabState[key] = { ...layoutLabDefaults[key] };
-                applyLayoutLabKey(key);
-                persistLayoutLabState();
-                syncLayoutLabControls();
-            });
-
-            resetAllBtn.addEventListener('click', () => {
-                Object.keys(layoutLabDefaults).forEach((key) => {
-                    layoutLabState[key] = { ...layoutLabDefaults[key] };
-                    applyLayoutLabKey(key);
-                });
-                persistLayoutLabState();
-                syncLayoutLabControls();
-            });
-
-            Object.keys(layoutLabElements).forEach((key) => {
-                const el = layoutLabElements[key];
-                el.addEventListener('mousedown', (event) => {
-                    if (!layoutLabEnabled) return;
-                    if (event.button !== 0) return;
-                    event.preventDefault();
-
-                    layoutLabSelectedKey = key;
-                    targetSelect.value = key;
-                    markLayoutLabSelection();
-
-                    const current = layoutLabState[key];
-                    layoutLabDrag = {
-                        key,
-                        startX: event.clientX,
-                        startY: event.clientY,
-                        initX: current.x,
-                        initY: current.y
-                    };
-                    el.classList.add('is-dragging');
-                    syncLayoutLabControls();
-                });
-            });
-
-            document.addEventListener('mousemove', (event) => {
-                if (!layoutLabDrag || !layoutLabEnabled) return;
-                const dx = event.clientX - layoutLabDrag.startX;
-                const dy = event.clientY - layoutLabDrag.startY;
-                updateLayoutLabValue(layoutLabDrag.key, 'x', Math.round(layoutLabDrag.initX + dx), false);
-                updateLayoutLabValue(layoutLabDrag.key, 'y', Math.round(layoutLabDrag.initY + dy), false);
-                syncLayoutLabControls();
-            });
-
-            document.addEventListener('mouseup', () => {
-                if (!layoutLabDrag) return;
-                const el = layoutLabElements[layoutLabDrag.key];
-                if (el) el.classList.remove('is-dragging');
-                layoutLabDrag = null;
-                persistLayoutLabState();
-            });
-        }
-
-        function updateLayoutLabValue(key, field, value, persist = true) {
-            if (!layoutLabState[key]) return;
-            layoutLabState[key][field] = Number.isFinite(Number(value)) ? Number(value) : 0;
-            applyLayoutLabKey(key);
-            if (persist) persistLayoutLabState();
-            syncLayoutLabControls();
-        }
-
-        function updateLayoutLabText(key, text, persist = true) {
-            if (!layoutLabState[key]) return;
-            if (layoutLabMeta[key]?.type === 'box') return;
-            layoutLabState[key].text = String(text || '');
-            applyLayoutLabKey(key);
-            if (persist) persistLayoutLabState();
-        }
-
-        function applyLayoutLabKey(key) {
-            const el = layoutLabElements[key];
-            const state = layoutLabState[key];
-            const meta = layoutLabMeta[key];
-            if (!el || !state || !meta) return;
-
-            el.style.transform = `translate(${state.x}px, ${state.y}px)`;
-            el.style.fontSize = `${state.fontSize}px`;
-
-            if (meta.type === 'box') {
-                el.style.width = `${Math.max(32, state.width)}px`;
-                el.style.height = `${Math.max(24, state.height)}px`;
-            } else {
-                el.style.width = '';
-                el.style.height = '';
-                el.textContent = state.text;
-            }
-
-            layoutLabMeta[key].label = buildLayoutLabLabel(el, state.text || '', meta.type);
-        }
-
-        function syncLayoutLabControls() {
-            const targetSelect = document.getElementById('lab-target');
-            const fontInput = document.getElementById('lab-font');
-            const xInput = document.getElementById('lab-x');
-            const yInput = document.getElementById('lab-y');
-            const widthInput = document.getElementById('lab-width');
-            const heightInput = document.getElementById('lab-height');
-            const textInput = document.getElementById('lab-text');
-            const fontValue = document.getElementById('lab-font-value');
-            const xValue = document.getElementById('lab-x-value');
-            const yValue = document.getElementById('lab-y-value');
-            const widthValue = document.getElementById('lab-width-value');
-            const heightValue = document.getElementById('lab-height-value');
-
-            const current = layoutLabState[layoutLabSelectedKey] || layoutLabDefaults[layoutLabSelectedKey];
-            if (!current) return;
-
-            refreshLayoutLabTargetOptions();
-            targetSelect.value = layoutLabSelectedKey;
-            fontInput.value = String(current.fontSize);
-            xInput.value = String(current.x);
-            yInput.value = String(current.y);
-            widthInput.value = String(current.width);
-            heightInput.value = String(current.height);
-            textInput.value = String(current.text || '');
-
-            const currentMeta = layoutLabMeta[layoutLabSelectedKey];
-            const isBox = currentMeta?.type === 'box';
-            widthInput.disabled = !isBox;
-            heightInput.disabled = !isBox;
-            textInput.disabled = isBox;
-
-            fontValue.textContent = `${current.fontSize}px`;
-            xValue.textContent = `${current.x}px`;
-            yValue.textContent = `${current.y}px`;
-            widthValue.textContent = `${current.width}px`;
-            heightValue.textContent = `${current.height}px`;
-        }
-
-        function markLayoutLabSelection() {
-            clearLayoutLabSelection();
-            const el = layoutLabElements[layoutLabSelectedKey];
-            if (el) el.classList.add('is-selected');
-        }
-
-        function clearLayoutLabSelection() {
-            document.querySelectorAll('[data-edit-key].is-selected').forEach((el) => el.classList.remove('is-selected'));
-        }
-
-        function persistLayoutLabState() {
-            localStorage.setItem(LAYOUT_LAB_STORAGE_KEY, JSON.stringify(layoutLabState));
-        }
-
-        function addLog(message, type = 'info') {
-            const logBox = document.getElementById('log-box');
-            if (!logBox) return;
+        function addLog(message, type = '') {
+            const box = document.getElementById('log-box');
+            if (!box) return;
             const line = document.createElement('div');
-            line.className = 'log-line' + (type === 'info' ? '' : ' ' + type);
             line.textContent = `[${new Date().toLocaleTimeString('zh-CN', { hour12: false })}] ${message}`;
-            logBox.appendChild(line);
+            box.appendChild(line);
         }
 
-        function setOverview(statusText) {
-            return statusText || '等待扫码';
-        }
-
+        // ─── Step state ───
         function setStep(id, status, desc) {
             const el = document.getElementById(id);
             if (!el) return;
             el.className = `step ${status}`;
-            if (desc) {
+            if (desc !== undefined) {
                 const descEl = el.querySelector('.step-desc');
-                if (descEl) descEl.innerHTML = desc;
+                if (descEl) descEl.innerHTML = escapeHtml(desc);
             }
         }
 
         function setFeishuSubProgress(stage) {
+            const stages = {
+                init:     ['active',  'pending', 'pending', 'pending'],
+                scanned:  ['active',  'pending', 'pending', 'pending'],
+                login_ok: ['done',    'active',  'pending', 'pending'],
+                bot_found:['done',    'done',    'active',  'pending'],
+                sending:  ['done',    'done',    'done',    'active'],
+                ip_done:  ['done',    'done',    'done',    'done'],
+            };
+            const steps = ['step-feishu', 'step-bot', 'step-command', 'step-ip'];
+            const statuses = stages[stage] || ['pending', 'pending', 'pending', 'pending'];
+            // 只更新 className，不传 desc，避免覆盖已设置的动态文字
+            steps.forEach((id, i) => {
+                const el = document.getElementById(id);
+                if (el) el.className = 'step ' + statuses[i];
+            });
+
+            // 动态描述文字（只在状态发生变化时更新，不在 sending/ip_done 重复覆盖）
+            const d1 = document.getElementById('step-feishu-desc');
+            const d2 = document.getElementById('step-bot-desc');
             if (stage === 'init') {
-                setStep('step-feishu', 'active', '等待用户扫码并在飞书中确认登录。');
-                setStep('step-bot', 'pending', '登录成功后自动识别并验证通信通道是否可用。');
-                setStep('step-command', 'pending', '步骤①②成功后方可点击确认发送指令。');
-                setStep('step-ip', 'pending', '等待命令执行并返回公网 IP 结果。');
-                return;
+                if (d1) d1.textContent = '等待飞书 App 扫码确认';
+                if (d2) d2.textContent = '等待发起 OpenClaw 机器人识别';
+            } else if (stage === 'scanned') {
+                if (d1) d1.textContent = '已完成扫码，登陆中...';
+            } else if (stage === 'login_ok') {
+                if (d1) d1.textContent = '已完成飞书登陆';
+                if (d2) d2.textContent = 'OpenClaw 机器人识别中...';
+            } else if (stage === 'bot_found') {
+                if (d1) d1.textContent = '已完成飞书登陆';
+                // d2 由 bot_found 回调单独设置，含机器人名
             }
-
-            if (stage === 'scanned') {
-                setStep('step-feishu', 'active', '已扫码，等待用户在飞书 App 中确认登录。');
-                setStep('step-bot', 'pending', '登录成功后自动识别并验证通信通道是否可用。');
-                setStep('step-command', 'pending', '步骤①②成功后方可点击确认发送指令。');
-                setStep('step-ip', 'pending', '等待命令执行并返回公网 IP 结果。');
-                return;
-            }
-
-            if (stage === 'login_ok') {
-                setStep('step-feishu', 'done', '登录飞书成功。');
-                setStep('step-bot', 'active', '正在查找 openclaw 机器人并校验通信通道。');
-                setStep('step-command', 'pending', '步骤①②成功后方可点击确认发送指令。');
-                setStep('step-ip', 'pending', '等待命令执行并返回公网 IP 结果。');
-                return;
-            }
-
-            if (stage === 'bot_found') {
-                setStep('step-feishu', 'done', '登录飞书成功。');
-                setStep('step-bot', 'done', '已找到 openclaw 机器人并确认通信通道可用。');
-                setStep('step-command', 'active', '通信通道可用，等待用户确认发送指令。');
-                setStep('step-ip', 'pending', '等待命令执行并返回公网 IP 结果。');
-                return;
-            }
-
-            if (stage === 'sending') {
-                setStep('step-feishu', 'done', '登录飞书成功。');
-                setStep('step-bot', 'done', '已找到 openclaw 机器人并确认通信通道可用。');
-                setStep('step-command', 'done', '已向 openclaw 发送命令「执行 curl ifconfig.me」。');
-                setStep('step-ip', 'active', '正在等待 openclaw 返回公网 IP。');
-                return;
-            }
-
-            if (stage === 'ip_done') {
-                setStep('step-feishu', 'done', '登录飞书成功。');
-                setStep('step-bot', 'done', '已找到 openclaw 机器人并确认通信通道可用。');
-                setStep('step-command', 'done', '命令已发送并执行完成。');
-                setStep('step-ip', 'done', '已成功获取到公网 IP。');
-                return;
-            }
+            // sending 和 ip_done 阶段不更新 d1/d2，保留已显示的机器人名
         }
 
-        function setLoginError(message) {
-            setStep('step-feishu', 'error', escapeHtml(message || '飞书登录失败'));
-            setStep('step-bot', 'pending', '登录成功后自动识别并验证通信通道是否可用。');
-            setStep('step-command', 'pending', '步骤①②成功后方可点击确认发送指令。');
-            setStep('step-ip', 'pending', '等待命令执行并返回公网 IP 结果。');
+        function setLoginError(msg) {
+            setStep('step-feishu', 'error', msg || '飞书登录失败');
+            ['step-bot', 'step-command', 'step-ip'].forEach(id => setStep(id, 'pending'));
         }
 
-        function setBotError(message) {
-            setStep('step-feishu', 'done', '登录飞书成功。');
-            setStep('step-bot', 'error', escapeHtml(message || '未找到可用的 openclaw 通信通道'));
-            setStep('step-command', 'pending', '步骤①②成功后方可点击确认发送指令。');
-            setStep('step-ip', 'pending', '等待命令执行并返回公网 IP 结果。');
+        function setBotError(msg) {
+            setStep('step-feishu', 'done');
+            setStep('step-bot', 'error', msg || '未找到可用的 OpenClaw 通信通道');
+            ['step-command', 'step-ip'].forEach(id => setStep(id, 'pending'));
         }
 
-        function setIpError(message) {
-            setStep('step-feishu', 'done', '登录飞书成功。');
-            setStep('step-bot', 'done', '已找到 openclaw 机器人并确认通信通道可用。');
-            setStep('step-command', 'done', '已向 openclaw 发送命令「执行 curl ifconfig.me」。');
-            setStep('step-ip', 'error', escapeHtml(message || '获取公网 IP 失败'));
+        function setIpError(msg) {
+            ['step-feishu', 'step-bot', 'step-command'].forEach(id => setStep(id, 'done'));
+            setStep('step-ip', 'error', msg || '获取公网 IP 失败');
         }
 
-        function showScanFeedback(text, keepVisible = false) {
-            const feedback = document.getElementById('scan-feedback');
-            feedback.textContent = text;
-            feedback.classList.add('show');
-            if (!keepVisible) {
-                setTimeout(() => feedback.classList.remove('show'), 1800);
-            }
+        // ─── QR ───
+        function showScanFeedback(text, keep = false) {
+            const fb = document.getElementById('scan-feedback');
+            fb.textContent = text;
+            fb.classList.add('show');
+            if (!keep) setTimeout(() => fb.classList.remove('show'), 2000);
         }
 
         function hideScanFeedback() {
@@ -1377,83 +968,76 @@
 
         function setQrLoginSuccess(done) {
             const overlay = document.getElementById('qr-success-overlay');
-            const qrcode = document.getElementById('feishu-qrcode');
-            if (done) {
-                overlay.classList.add('show');
-                qrcode.classList.add('logged-in');
-            } else {
-                overlay.classList.remove('show');
-                qrcode.classList.remove('logged-in');
-            }
+            const qr = document.getElementById('feishu-qrcode');
+            overlay.classList.toggle('show', done);
+            qr.classList.toggle('logged-in', done);
+        }
+
+        function renderQrcode(content) {
+            const loading = document.getElementById('feishu-loading');
+            const qr = document.getElementById('feishu-qrcode');
+            const frame = document.querySelector('.qr-frame');
+            const size = Math.min(frame.clientWidth - 36, 190);
+            loading.style.display = 'none';
+            qr.style.display = 'block';
+            qr.innerHTML = '';
+            new QRCode(qr, {
+                text: content,
+                width: size,
+                height: size,
+                correctLevel: QRCode.CorrectLevel.M
+            });
         }
 
         function resetFlowView() {
-            if (pollTimer) {
-                clearInterval(pollTimer);
-                pollTimer = null;
-            }
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
             flowState = { appId: '', appSecret: '', botName: '', manageUrl: '', openId: '', ip: '' };
-            document.getElementById('feishu-loading').style.display = 'flex';
-            document.getElementById('feishu-loading').innerHTML = '<div class="qr-placeholder-icon"></div><div class="loading-text">正在生成飞书二维码...</div>';
+
+            const loading = document.getElementById('feishu-loading');
+            loading.style.display = 'flex';
+            loading.innerHTML = '<div class="qr-spinner"></div><div class="qr-loading-text">正在生成二维码...</div>';
+
             document.getElementById('feishu-qrcode').style.display = 'none';
             document.getElementById('feishu-qrcode').innerHTML = '';
-            document.getElementById('feishu-status').className = 'status-chip';
-            document.getElementById('feishu-status').textContent = '正在生成二维码';
+
+            const chip = document.getElementById('feishu-status');
+            chip.className = 'status-chip idle';
+            chip.textContent = '等待扫码';
+
             document.getElementById('manage-link').style.display = 'none';
-            document.getElementById('confirm-box').style.display = 'flex';
             document.getElementById('ip-panel').style.display = 'none';
-            const logBox = document.getElementById('log-box');
-            if (logBox) logBox.innerHTML = '';
-            hideScanFeedback();
-            setQrLoginSuccess(false);
-            document.getElementById('bot-name').textContent = '待匹配';
+            document.getElementById('bot-name-chip').classList.add('hidden');
             document.getElementById('confirm-send-btn').disabled = true;
             document.getElementById('modal-confirm-btn').disabled = false;
-            setOverview('正在生成二维码');
+
+            hideScanFeedback();
+            setQrLoginSuccess(false);
             setFeishuSubProgress('init');
         }
 
         async function initFeishuQrcode() {
             resetFlowView();
             addLog('开始初始化飞书扫码流程。');
-
             try {
                 const resp = await fetch('/api/feishu/init', { method: 'POST' });
                 const data = await resp.json();
-                if (!data.success) {
-                    throw new Error(data.error || '初始化失败');
-                }
+                if (!data.success) throw new Error(data.error || '初始化失败');
 
                 feishuSessionId = data.session_id;
                 renderQrcode(data.qr_content);
-                document.getElementById('feishu-status').textContent = '等待扫码';
-                setOverview('等待扫码');
+
+                const chip = document.getElementById('feishu-status');
+                chip.className = 'status-chip idle';
+                chip.textContent = '等待扫码';
+
                 addLog('飞书二维码已生成，请扫码。', 'success');
                 startPolling();
-            } catch (error) {
-                document.getElementById('feishu-status').className = 'status-chip';
-                document.getElementById('feishu-status').textContent = '二维码生成失败';
-                document.getElementById('feishu-loading').innerHTML = '<div class="loading-text" style="color:#FF3B30;">二维码生成失败：' + escapeHtml(error.message) + '</div>';
-                setOverview('初始化失败');
-                setLoginError(error.message || '初始化失败');
-                addLog('初始化失败：' + error.message, 'error');
+            } catch (err) {
+                const loading = document.getElementById('feishu-loading');
+                loading.innerHTML = `<div class="qr-loading-text" style="color:var(--red);">二维码生成失败：${escapeHtml(err.message)}</div>`;
+                setLoginError(err.message);
+                addLog('初始化失败：' + err.message, 'error');
             }
-        }
-
-        function renderQrcode(content) {
-            const loading = document.getElementById('feishu-loading');
-            const qrcode = document.getElementById('feishu-qrcode');
-            const panel = document.getElementById('qr-panel');
-            const size = Math.max(170, Math.min(panel.clientWidth - 40, panel.clientHeight - 40, 250));
-            loading.style.display = 'none';
-            qrcode.style.display = 'block';
-            qrcode.innerHTML = '';
-            new QRCode(qrcode, {
-                text: content,
-                width: size,
-                height: size,
-                correctLevel: QRCode.CorrectLevel.M
-            });
         }
 
         function startPolling() {
@@ -1465,60 +1049,53 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ session_id: feishuSessionId })
                     });
-                    const data = await resp.json();
-                    handlePollResult(data);
-                } catch (error) {
-                    addLog('轮询异常：' + error.message, 'error');
+                    handlePollResult(await resp.json());
+                } catch (err) {
+                    addLog('轮询异常：' + err.message, 'error');
                 }
             }, 2000);
         }
 
         function handlePollResult(data) {
-            const statusChip = document.getElementById('feishu-status');
+            const chip = document.getElementById('feishu-status');
+
+            if (data.status === 'pending') {
+                chip.className = 'status-chip idle';
+                chip.textContent = '等待扫码';
+                return;
+            }
 
             if (data.status === 'scanned') {
-                statusChip.className = 'status-chip info';
-                statusChip.textContent = '已扫码，请确认';
-                setOverview('已扫码待确认');
+                chip.className = 'status-chip info';
+                chip.textContent = '已扫码，请确认';
                 setFeishuSubProgress('scanned');
                 showScanFeedback('扫码成功，请在飞书 App 点击确认登录。', true);
                 return;
             }
 
-            if (data.status === 'pending') {
-                statusChip.className = 'status-chip';
-                statusChip.textContent = '等待扫码';
-                setOverview('等待扫码');
-                hideScanFeedback();
-                return;
-            }
-
             if (data.status === 'expired') {
-                clearInterval(pollTimer);
-                pollTimer = null;
-                statusChip.textContent = '二维码已过期';
-                setOverview('二维码已过期');
+                clearInterval(pollTimer); pollTimer = null;
+                chip.className = 'status-chip error';
+                chip.textContent = '二维码已过期';
                 addLog('二维码已过期，准备重新生成。', 'warn');
                 setTimeout(() => initFeishuQrcode(), 800);
                 return;
             }
 
             if (data.status === 'login_ok') {
-                statusChip.className = 'status-chip success';
-                statusChip.textContent = '登录成功';
-                setOverview('登录成功');
+                chip.className = 'status-chip success';
+                chip.textContent = '登录成功';
                 setQrLoginSuccess(true);
                 setFeishuSubProgress('login_ok');
-                showScanFeedback('登录成功，正在查找 openclaw 机器人...');
-                addLog('登录飞书成功，正在查找 openclaw 机器人。', 'success');
+                showScanFeedback('登录成功，正在查找 OpenClaw 机器人...');
+                addLog('登录飞书成功，正在查找 OpenClaw 机器人。', 'success');
                 return;
             }
 
             if (data.status === 'completed') {
-                clearInterval(pollTimer);
-                pollTimer = null;
-                statusChip.className = 'status-chip success';
-                statusChip.textContent = '登录成功';
+                clearInterval(pollTimer); pollTimer = null;
+                chip.className = 'status-chip success';
+                chip.textContent = '登录成功';
                 setQrLoginSuccess(true);
                 showScanFeedback('通信通道已确认可用。');
 
@@ -1529,10 +1106,14 @@
                 flowState.openId = data.open_id || '';
                 flowState.ip = data.openclaw_ip || '';
 
+                // Show bot name chip
                 document.getElementById('bot-name').textContent = flowState.botName;
+                document.getElementById('bot-name-chip').classList.remove('hidden');
                 document.getElementById('confirm-send-btn').disabled = false;
-                setOverview('通道可用，待确认发送');
                 setFeishuSubProgress('bot_found');
+                // 更新步骤 2 描述为机器人名
+                const d2 = document.getElementById('step-bot-desc');
+                if (d2) d2.textContent = '已识别到 OpenClaw 机器人：' + flowState.botName;
 
                 if (flowState.manageUrl) {
                     const link = document.getElementById('manage-link');
@@ -1540,47 +1121,42 @@
                     link.style.display = 'inline-flex';
                 }
 
-                addLog('已找到 openclaw 机器人：' + flowState.botName, 'success');
+                addLog('已找到 OpenClaw 机器人：' + flowState.botName, 'success');
 
-                if (flowState.ip) {
-                    applyIpResult(flowState.ip, true);
-                }
+                if (flowState.ip) applyIpResult(flowState.ip, true);
                 return;
             }
 
             if (data.status === 'error') {
-                clearInterval(pollTimer);
-                pollTimer = null;
+                clearInterval(pollTimer); pollTimer = null;
                 hideScanFeedback();
                 setQrLoginSuccess(false);
-                statusChip.textContent = '流程失败';
-                setOverview('流程失败');
-                const message = data.message || '扫码流程失败';
-                if (String(message).includes('机器人') || String(message).includes('通道')) {
-                    setBotError(message);
+                chip.className = 'status-chip error';
+                chip.textContent = '流程失败';
+                const msg = data.message || '扫码流程失败';
+                if (String(msg).includes('机器人') || String(msg).includes('通道')) {
+                    setBotError(msg);
                 } else {
-                    setLoginError(message);
+                    setLoginError(msg);
                 }
-                addLog('扫码流程失败：' + message, 'error');
+                addLog('扫码流程失败：' + msg, 'error');
             }
         }
 
+        // ─── Modal ───
         function openConfirmModal() {
-            document.getElementById('confirm-modal').style.display = 'flex';
+            document.getElementById('confirm-modal').classList.add('show');
         }
 
         function closeConfirmModal() {
-            document.getElementById('confirm-modal').style.display = 'none';
+            document.getElementById('confirm-modal').classList.remove('show');
         }
 
         async function confirmSendCommand() {
             closeConfirmModal();
-            const confirmBtn = document.getElementById('confirm-send-btn');
-            const modalBtn = document.getElementById('modal-confirm-btn');
-            confirmBtn.disabled = true;
-            modalBtn.disabled = true;
+            document.getElementById('confirm-send-btn').disabled = true;
+            document.getElementById('modal-confirm-btn').disabled = true;
 
-            setOverview('命令发送中');
             setFeishuSubProgress('sending');
             addLog('用户已确认发送命令：执行 curl ifconfig.me');
 
@@ -1591,40 +1167,28 @@
                     body: JSON.stringify({ session_id: feishuSessionId })
                 });
                 const data = await resp.json();
-
-                if (!data.success || !data.ip) {
-                    throw new Error(data.error || '未获取到公网 IP');
-                }
-
+                if (!data.success || !data.ip) throw new Error(data.error || '未获取到公网 IP');
                 applyIpResult(data.ip, false);
                 addLog('成功获取公网 IP：' + data.ip, 'success');
-            } catch (error) {
-                setOverview('命令执行失败');
-                setIpError(error.message);
-                addLog('获取公网 IP 失败：' + error.message, 'error');
-                confirmBtn.disabled = false;
-                modalBtn.disabled = false;
+            } catch (err) {
+                setIpError(err.message);
+                addLog('获取公网 IP 失败：' + err.message, 'error');
+                document.getElementById('confirm-send-btn').disabled = false;
+                document.getElementById('modal-confirm-btn').disabled = false;
             }
         }
 
         function applyIpResult(ip, alreadyReady) {
             flowState.ip = ip;
             document.getElementById('ip-value').textContent = ip;
-            document.getElementById('ip-panel').style.display = 'block';
-            setOverview('已成功获取公网 IP');
             setFeishuSubProgress('ip_done');
-            if (alreadyReady) {
-                addLog('已直接拿到 openclaw 公网 IP：' + ip, 'success');
-            }
+            if (alreadyReady) addLog('已直接拿到 OpenClaw 公网 IP：' + ip, 'success');
         }
 
-        function escapeHtml(value) {
-            return String(value)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
+        function escapeHtml(v) {
+            return String(v)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
     </script>
 </body>
