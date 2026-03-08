@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenClaw 飞书接入工作台</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary: #007AFF;
+            --primary-soft: rgba(0, 122, 255, 0.12);
+            --success: #34C759;
+            --success-soft: rgba(52, 199, 89, 0.14);
+            --danger: #FF3B30;
+            --danger-soft: rgba(255, 59, 48, 0.14);
+            --warning: #8E8E93;
+            --warning-soft: rgba(142, 142, 147, 0.12);
+            --card: rgba(255, 255, 255, 0.94);
+            --text-main: #111827;
+            --text-sub: #6B7280;
+            --line: rgba(148, 163, 184, 0.18);
+            --shadow: 0 24px 60px rgba(15, 23, 42, 0.10);
+            --radius-xl: 28px;
+            --radius-lg: 22px;
+            --radius-md: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--text-main);
+            background:
+                radial-gradient(circle at top left, rgba(0, 122, 255, 0.16), transparent 28%),
+                radial-gradient(circle at bottom right, rgba(52, 199, 89, 0.10), transparent 26%),
+                linear-gradient(135deg, #F3F8FF 0%, #F8FBFF 56%, #EFF7FF 100%);
+            padding: 16px;
+        }
+
+        .shell {
+            width: min(1440px, calc(100vw - 32px));
+            min-width: 1200px;
+            height: calc(100vh - 32px);
+            margin: 0 auto;
+            display: grid;
+            grid-template-rows: auto minmax(0, 56vh) 1fr;
+            gap: 14px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            min-height: 78px;
+            padding: 18px 24px;
+            background: var(--card);
+            border: 1px solid rgba(255, 255, 255, 0.72);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(18px);
+        }
+
+        .topbar-copy {
+            min-width: 0;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            margin-bottom: 8px;
+            border-radius: 999px;
+            background: var(--primary-soft);
+            color: var(--primary);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .eyebrow::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        .topbar h1 {
+            font-size: 26px;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            margin-bottom: 4px;
+        }
+
+        .topbar p {
+            max-width: 760px;
+            color: var(--text-sub);
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .layout {
+            min-height: 0;
+            height: 100%;
+            display: grid;
+            grid-template-columns: 30% 70%;
+            gap: 14px;
+        }
+
+        .panel {
+            background: var(--card);
+            border: 1px solid rgba(255, 255, 255, 0.72);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(18px);
+            overflow: hidden;
+        }
+
+        .left-panel {
+            padding: 18px;
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+            min-height: 0;
+        }
+
+        .left-inner {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 16px;
+        }
+
+        .left-hint {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+            line-height: 1.45;
+            text-align: left;
+        }
+
+        .left-main {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .scan-feedback {
+            display: none;
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(0, 122, 255, 0.16);
+            background: rgba(0, 122, 255, 0.08);
+            color: var(--primary);
+            font-size: 12px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .scan-feedback.show {
+            display: block;
+        }
+
+        .qr-panel {
+            width: clamp(220px, 18vw, 300px);
+            aspect-ratio: 1;
+            max-height: min(38vh, 300px);
+            border-radius: 24px;
+            border: 1.5px dashed rgba(0, 122, 255, 0.26);
+            background: linear-gradient(180deg, #FFFFFF 0%, #F6FAFF 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            padding: 18px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
+        }
+
+        .qr-panel::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at top, rgba(0, 122, 255, 0.08), transparent 56%);
+            pointer-events: none;
+        }
+
+        .qr-loading {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            text-align: center;
+        }
+
+        .qr-placeholder-icon {
+            width: 86px;
+            height: 86px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, rgba(0, 122, 255, 0.14), rgba(0, 122, 255, 0.06));
+            border: 1px solid rgba(0, 122, 255, 0.16);
+            position: relative;
+        }
+
+        .qr-placeholder-icon::before,
+        .qr-placeholder-icon::after {
+            content: "";
+            position: absolute;
+            inset: 17px;
+            border: 3px solid rgba(0, 122, 255, 0.38);
+            border-radius: 12px;
+        }
+
+        .qr-placeholder-icon::after {
+            inset: 30px;
+            border-width: 2px;
+            border-color: rgba(0, 122, 255, 0.26);
+        }
+
+        .loading-text {
+            color: var(--text-sub);
+            font-size: 13px;
+            line-height: 1.55;
+        }
+
+        #feishu-qrcode {
+            position: relative;
+            z-index: 1;
+            display: none;
+        }
+
+        #feishu-qrcode img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            transition: .2s ease;
+        }
+
+        #feishu-qrcode.logged-in img {
+            opacity: 0.2;
+            filter: blur(1px);
+            transform: scale(0.98);
+        }
+
+        .qr-success-overlay {
+            position: absolute;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(17, 24, 39, 0.18);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .qr-success-overlay.show {
+            display: flex;
+        }
+
+        .qr-success-text {
+            padding: 10px 16px;
+            border-radius: 16px;
+            background: rgba(240, 253, 244, 0.96);
+            border: 1px solid rgba(52, 199, 89, 0.28);
+            color: #15803D;
+            font-size: 22px;
+            font-weight: 800;
+            box-shadow: 0 16px 34px rgba(52, 199, 89, 0.18);
+        }
+
+        .left-actions {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 132px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: var(--warning-soft);
+            border: 1px solid rgba(142, 142, 147, 0.18);
+            color: #6B7280;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .status-chip.info {
+            background: var(--primary-soft);
+            border-color: rgba(0, 122, 255, 0.18);
+            color: var(--primary);
+        }
+
+        .status-chip.success {
+            background: var(--success-soft);
+            border-color: rgba(52, 199, 89, 0.18);
+            color: #1E9F45;
+        }
+
+        .qr-actions {
+            display: flex;
+            justify-content: center;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 14px;
+            padding: 11px 18px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease, background .18s ease;
+            white-space: nowrap;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #007AFF, #0062CC);
+            color: #fff;
+            box-shadow: 0 14px 28px rgba(0, 122, 255, 0.22);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            box-shadow: 0 18px 36px rgba(0, 122, 255, 0.28);
+        }
+
+        .btn-secondary {
+            background: rgba(148, 163, 184, 0.14);
+            color: var(--text-main);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(148, 163, 184, 0.24);
+        }
+
+        .btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .right-panel {
+            padding: 18px 20px;
+            min-height: 0;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            gap: 12px;
+        }
+
+        .right-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .right-head h2 {
+            font-size: 22px;
+            letter-spacing: -0.02em;
+        }
+
+        .manage-link {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 14px;
+            background: var(--primary-soft);
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .manage-link:hover {
+            background: rgba(0, 122, 255, 0.18);
+        }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-auto-rows: minmax(170px, 1fr);
+            gap: 12px;
+            min-height: 0;
+            align-items: stretch;
+        }
+
+        .step {
+            min-height: 0;
+            height: 100%;
+            display: grid;
+            grid-template-columns: 40px minmax(0, 1fr);
+            gap: 9px;
+            align-items: flex-start;
+            padding: 12px;
+            border-radius: 16px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.84);
+            transition: .2s ease;
+            overflow: hidden;
+        }
+
+        .step.pending {
+            border-color: rgba(148, 163, 184, 0.16);
+        }
+
+        .step.active {
+            border-color: rgba(0, 122, 255, 0.22);
+            background: linear-gradient(180deg, rgba(239, 247, 255, 0.96), rgba(255, 255, 255, 0.95));
+            box-shadow: 0 14px 32px rgba(0, 122, 255, 0.10);
+        }
+
+        .step.done {
+            border-color: rgba(52, 199, 89, 0.22);
+            background: linear-gradient(180deg, rgba(240, 253, 244, 0.96), rgba(255, 255, 255, 0.95));
+        }
+
+        .step.error {
+            border-color: rgba(255, 59, 48, 0.22);
+            background: linear-gradient(180deg, rgba(255, 242, 241, 0.96), rgba(255, 255, 255, 0.95));
+        }
+
+        .step-marker {
+            width: 40px;
+            height: 40px;
+            border-radius: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(148, 163, 184, 0.10);
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            color: var(--warning);
+            font-size: 16px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .step.active .step-marker {
+            background: linear-gradient(135deg, #007AFF, #0062CC);
+            border-color: transparent;
+            color: #fff;
+        }
+
+        .step.done .step-marker {
+            background: linear-gradient(135deg, #34C759, #28A745);
+            border-color: transparent;
+            color: #fff;
+        }
+
+        .step.error .step-marker {
+            background: linear-gradient(135deg, #FF3B30, #E53935);
+            border-color: transparent;
+            color: #fff;
+        }
+
+        .step-content {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 5px;
+            overflow: hidden;
+        }
+
+        .step-title {
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .step-title-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .step-bot-chip {
+            max-width: 42%;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(0, 122, 255, 0.10);
+            color: var(--primary);
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .step-desc {
+            color: var(--text-sub);
+            font-size: 11px;
+            line-height: 1.45;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .confirm-box {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .confirm-desc {
+            min-height: 18px;
+        }
+
+        #confirm-send-btn {
+            align-self: flex-start;
+        }
+
+        .cmd-preview {
+            flex: 1 1 auto;
+            min-width: 0;
+            padding: 9px 11px;
+            border-radius: 12px;
+            background: linear-gradient(180deg, #111827, #0F172A);
+            color: #E5E7EB;
+            border: 1px solid rgba(51, 65, 85, 0.95);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .result-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .ip-panel {
+            display: none;
+            flex: 1 1 auto;
+            min-width: 0;
+            padding: 14px 15px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #34C759, #28A745);
+            color: #fff;
+            box-shadow: 0 14px 28px rgba(52, 199, 89, 0.18);
+        }
+
+        .ip-label {
+            font-size: 11px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            opacity: 0.88;
+            margin-bottom: 6px;
+        }
+
+        .ip-value {
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .log-box {
+            display: none;
+        }
+
+        .log-line {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .modal-mask {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.56);
+            backdrop-filter: blur(8px);
+            z-index: 40;
+        }
+
+        .modal {
+            width: min(520px, 100%);
+            padding: 24px;
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.78);
+            box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+        }
+
+        .modal h3 {
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+
+        .modal p {
+            color: var(--text-sub);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .modal-actions {
+            margin-top: 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .layout-lab-toggle {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 45;
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 122, 255, 0.3);
+            background: rgba(255, 255, 255, 0.95);
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 24px rgba(0, 122, 255, 0.18);
+        }
+
+        .layout-lab-panel {
+            position: fixed;
+            right: 20px;
+            bottom: 72px;
+            width: min(340px, calc(100vw - 40px));
+            padding: 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: 0 18px 34px rgba(15, 23, 42, 0.18);
+            z-index: 45;
+            display: none;
+        }
+
+        .layout-lab-panel.show {
+            display: block;
+        }
+
+        .lab-title {
+            font-size: 14px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .lab-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .lab-row label {
+            width: 86px;
+            color: var(--text-sub);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .lab-row select,
+        .lab-row input,
+        .lab-row textarea {
+            flex: 1;
+        }
+
+        .lab-row input[type="range"] {
+            accent-color: var(--primary);
+        }
+
+        .lab-row-text {
+            align-items: flex-start;
+        }
+
+        .lab-row textarea {
+            resize: vertical;
+            min-height: 64px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 12px;
+            font-family: inherit;
+        }
+
+        .lab-value {
+            min-width: 52px;
+            text-align: right;
+            font-size: 12px;
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        .lab-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .lab-btn {
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            border-radius: 10px;
+            background: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 7px 10px;
+            cursor: pointer;
+        }
+
+        .layout-lab-on [data-edit-key] {
+            cursor: grab;
+            outline: 1px dashed rgba(0, 122, 255, 0.35);
+            outline-offset: 2px;
+            user-select: none;
+        }
+
+        .layout-lab-on [data-edit-key].is-dragging {
+            cursor: grabbing;
+        }
+
+        .layout-lab-on [data-edit-key].is-selected {
+            outline: 2px solid rgba(0, 122, 255, 0.65);
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <div class="topbar">
+            <div class="topbar-copy">
+                <div class="eyebrow">OpenClaw · Feishu Connect</div>
+                <h1 id="edit-title" data-edit-key="title">飞书扫码验证工作台</h1>
+                <p id="edit-subtitle" data-edit-key="subtitle">左侧展示完整二维码，右侧保留 4 个核心步骤，下方区域留空待补充内容。</p>
+            </div>
+        </div>
+
+        <div class="layout">
+            <section class="panel left-panel" id="entry-feishu">
+                <div class="left-inner">
+                    <div class="left-hint" id="edit-left-hint" data-edit-key="leftHint">第一步：用飞书APP扫码完成操作</div>
+                    <div class="left-main">
+                        <div class="scan-feedback" id="scan-feedback"></div>
+
+                        <div class="qr-panel" id="qr-panel">
+                            <div id="feishu-loading" class="qr-loading">
+                                <div class="qr-placeholder-icon"></div>
+                                <div class="loading-text">正在生成飞书二维码...</div>
+                            </div>
+                            <div id="feishu-qrcode"></div>
+                            <div id="qr-success-overlay" class="qr-success-overlay">
+                                <div class="qr-success-text">登录成功</div>
+                            </div>
+                        </div>
+
+                        <div class="left-actions">
+                            <div id="feishu-status" class="status-chip">等待扫码</div>
+                            <button class="btn btn-primary" id="refresh-btn" onclick="initFeishuQrcode()">重新生成二维码</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel right-panel" id="detail-feishu">
+                <div class="right-head">
+                    <h2 id="edit-right-title" data-edit-key="rightTitle">核心流程执行进展</h2>
+                    <a id="manage-link" class="manage-link" href="#" target="_blank" rel="noreferrer">打开机器人后台</a>
+                </div>
+
+                <div class="steps">
+                    <div class="step pending" id="step-feishu">
+                        <div class="step-marker">1</div>
+                        <div class="step-content">
+                            <div class="step-title">① 登录飞书成功</div>
+                            <div class="step-desc">等待用户扫码并在飞书中确认登录。</div>
+                        </div>
+                    </div>
+
+                    <div class="step pending" id="step-bot">
+                        <div class="step-marker">2</div>
+                        <div class="step-content">
+                            <div class="step-title">② 找到 openclaw 机器人</div>
+                            <div class="step-meta">当前机器人：<span id="bot-name">待匹配</span></div>
+                            <div class="step-desc">登录成功后自动识别并验证通信通道是否可用。</div>
+                        </div>
+                    </div>
+
+                    <div class="step pending" id="step-command">
+                        <div class="step-marker">3</div>
+                        <div class="step-content">
+                            <div class="step-title">③ 待用户确认：发送指令</div>
+                            <div class="confirm-box" id="confirm-box">
+                                <div class="cmd-preview">执行 curl ifconfig.me</div>
+                                <div class="command-row">
+                                    <div class="step-desc">步骤①②成功后方可点击确认发送指令。</div>
+                                    <button class="btn btn-primary" id="confirm-send-btn" onclick="openConfirmModal()" disabled>确认发送指令</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step pending" id="step-ip">
+                        <div class="step-marker">4</div>
+                        <div class="step-content">
+                            <div class="step-title">④ 成功获取到公网 IP</div>
+                            <div class="result-row">
+                                <div class="ip-panel" id="ip-panel">
+                                    <div class="ip-label">公网 IP</div>
+                                    <div class="ip-value" id="ip-value">-</div>
+                                </div>
+                            </div>
+                            <div class="step-desc">等待命令执行并返回公网 IP 结果。</div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+        </div>
+    </div>
+
+    <button type="button" id="layout-lab-toggle" class="layout-lab-toggle">开启拖拽微调</button>
+    <div class="layout-lab-panel" id="layout-lab-panel">
+        <div class="lab-title">拖拽微调面板</div>
+        <div class="lab-row">
+            <label for="lab-target">当前元素</label>
+            <select id="lab-target"></select>
+        </div>
+        <div class="lab-row">
+            <label for="lab-font">字号</label>
+            <input id="lab-font" type="range" min="12" max="40" step="1">
+            <div class="lab-value" id="lab-font-value">-</div>
+        </div>
+        <div class="lab-row">
+            <label for="lab-x">水平偏移</label>
+            <input id="lab-x" type="range" min="-200" max="200" step="1">
+            <div class="lab-value" id="lab-x-value">0px</div>
+        </div>
+        <div class="lab-row">
+            <label for="lab-y">垂直偏移</label>
+            <input id="lab-y" type="range" min="-200" max="200" step="1">
+            <div class="lab-value" id="lab-y-value">0px</div>
+        </div>
+        <div class="lab-row">
+            <label for="lab-width">宽度</label>
+            <input id="lab-width" type="range" min="80" max="1200" step="1">
+            <div class="lab-value" id="lab-width-value">-</div>
+        </div>
+        <div class="lab-row">
+            <label for="lab-height">高度</label>
+            <input id="lab-height" type="range" min="32" max="800" step="1">
+            <div class="lab-value" id="lab-height-value">-</div>
+        </div>
+        <div class="lab-row lab-row-text">
+            <label for="lab-text">文字内容</label>
+            <textarea id="lab-text" rows="3" placeholder="在这里修改选中元素文字"></textarea>
+        </div>
+        <div class="lab-actions">
+            <button type="button" class="lab-btn" id="lab-copy">复制配置JSON</button>
+            <button type="button" class="lab-btn" id="lab-reset-one">重置当前元素</button>
+            <button type="button" class="lab-btn" id="lab-reset-all">重置全部</button>
+        </div>
+    </div>
+
+    <div class="modal-mask" id="confirm-modal">
+        <div class="modal">
+            <h3>确认发送指令</h3>
+            <p>确认后会向 OpenClaw 机器人发送固定命令 <code>执行 curl ifconfig.me</code>，用于获取公网 IP。</p>
+            <div class="cmd-preview">执行 curl ifconfig.me</div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeConfirmModal()">取消</button>
+                <button class="btn btn-primary" id="modal-confirm-btn" onclick="confirmSendCommand()">确认发送</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let feishuSessionId = null;
+        let pollTimer = null;
+        let flowState = {
+            appId: '',
+            appSecret: '',
+            botName: '',
+            manageUrl: '',
+            openId: '',
+            ip: ''
+        };
+
+        const LAYOUT_LAB_STORAGE_KEY = 'feishu-flow-layout-lab-v3';
+        let layoutLabEnabled = false;
+        let layoutLabSelectedKey = '';
+        let layoutLabDrag = null;
+        let layoutLabAutoIndex = 1;
+        const layoutLabElements = {};
+        const layoutLabMeta = {};
+        const layoutLabDefaults = {};
+        let layoutLabState = {};
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initLayoutLab();
+            addLog('页面已加载：飞书入口已就绪。');
+            initFeishuQrcode();
+        });
+
+        function initLayoutLab() {
+            collectLayoutLabElements();
+
+            try {
+                const saved = localStorage.getItem(LAYOUT_LAB_STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed && typeof parsed === 'object') {
+                        layoutLabState = parsed;
+                    }
+                }
+            } catch (e) {
+                layoutLabState = {};
+            }
+
+            Object.keys(layoutLabElements).forEach((key) => {
+                const base = layoutLabDefaults[key];
+                const current = layoutLabState[key] || {};
+                layoutLabState[key] = {
+                    x: Number.isFinite(Number(current.x)) ? Number(current.x) : base.x,
+                    y: Number.isFinite(Number(current.y)) ? Number(current.y) : base.y,
+                    width: Number.isFinite(Number(current.width)) ? Number(current.width) : base.width,
+                    height: Number.isFinite(Number(current.height)) ? Number(current.height) : base.height,
+                    fontSize: Number.isFinite(Number(current.fontSize)) ? Number(current.fontSize) : base.fontSize,
+                    text: typeof current.text === 'string' ? current.text : base.text
+                };
+                applyLayoutLabKey(key);
+            });
+
+            layoutLabSelectedKey = Object.keys(layoutLabElements)[0] || '';
+            bindLayoutLabEvents();
+            syncLayoutLabControls();
+        }
+
+        function collectLayoutLabElements() {
+            const blockedSelectors = '#layout-lab-panel, #layout-lab-toggle, script, style';
+            document.querySelectorAll('body *').forEach((el) => {
+                if (el.matches(blockedSelectors) || el.closest('#layout-lab-panel')) return;
+
+                const isLeafText = isLeafTextElement(el);
+                const isBox = isLayoutBoxElement(el);
+                if (!isLeafText && !isBox) return;
+
+                const text = (el.textContent || '').trim();
+                const rect = el.getBoundingClientRect();
+                const width = Math.max(32, Math.round(rect.width || el.offsetWidth || 120));
+                const height = Math.max(24, Math.round(rect.height || el.offsetHeight || 40));
+
+                let key = el.dataset.editKey;
+                if (!key) {
+                    key = `autoText${layoutLabAutoIndex++}`;
+                    el.dataset.editKey = key;
+                }
+
+                layoutLabElements[key] = el;
+                layoutLabMeta[key] = {
+                    type: isBox ? 'box' : 'text',
+                    label: buildLayoutLabLabel(el, text, isBox ? 'box' : 'text')
+                };
+                layoutLabDefaults[key] = {
+                    x: 0,
+                    y: 0,
+                    width,
+                    height,
+                    fontSize: Math.round(parseFloat(getComputedStyle(el).fontSize) || 16),
+                    text
+                };
+            });
+
+            refreshLayoutLabTargetOptions();
+        }
+
+        function isLeafTextElement(el) {
+            if (el.childElementCount > 0) return false;
+            const text = (el.textContent || '').trim();
+            return Boolean(text);
+        }
+
+        function isLayoutBoxElement(el) {
+            const tag = el.tagName.toLowerCase();
+            if (['section', 'article', 'aside'].includes(tag)) return true;
+            const name = `${el.id || ''} ${typeof el.className === 'string' ? el.className : ''}`.toLowerCase();
+            return /(panel|step|box|modal|topbar|layout|shell|row|actions|preview|status|head)/.test(name);
+        }
+
+        function buildLayoutLabLabel(el, text, type = 'text') {
+            const idPart = el.id ? `#${el.id}` : '';
+            const classPart = !el.id && el.className && typeof el.className === 'string'
+                ? `.${el.className.trim().split(/\s+/).slice(0, 1).join('')}`
+                : '';
+            const shortText = (text || '').replace(/\s+/g, ' ').slice(0, 18);
+            const typeLabel = type === 'box' ? '框' : '字';
+            return `${typeLabel} · ${el.tagName.toLowerCase()}${idPart || classPart} · ${shortText || '(无文字)'}`;
+        }
+
+        function refreshLayoutLabTargetOptions() {
+            const targetSelect = document.getElementById('lab-target');
+            targetSelect.innerHTML = '';
+            Object.keys(layoutLabElements).forEach((key) => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = layoutLabMeta[key]?.label || key;
+                targetSelect.appendChild(option);
+            });
+        }
+
+        function bindLayoutLabEvents() {
+            const toggleBtn = document.getElementById('layout-lab-toggle');
+            const panel = document.getElementById('layout-lab-panel');
+            const targetSelect = document.getElementById('lab-target');
+            const fontInput = document.getElementById('lab-font');
+            const xInput = document.getElementById('lab-x');
+            const yInput = document.getElementById('lab-y');
+            const textInput = document.getElementById('lab-text');
+            const copyBtn = document.getElementById('lab-copy');
+            const resetOneBtn = document.getElementById('lab-reset-one');
+            const resetAllBtn = document.getElementById('lab-reset-all');
+
+            toggleBtn.addEventListener('click', () => {
+                layoutLabEnabled = !layoutLabEnabled;
+                document.body.classList.toggle('layout-lab-on', layoutLabEnabled);
+                panel.classList.toggle('show', layoutLabEnabled);
+                toggleBtn.textContent = layoutLabEnabled ? '退出拖拽微调' : '开启拖拽微调';
+                if (!layoutLabEnabled) {
+                    clearLayoutLabSelection();
+                } else {
+                    markLayoutLabSelection();
+                }
+            });
+
+            targetSelect.addEventListener('change', () => {
+                layoutLabSelectedKey = targetSelect.value;
+                markLayoutLabSelection();
+                syncLayoutLabControls();
+            });
+
+            fontInput.addEventListener('input', () => {
+                updateLayoutLabValue(layoutLabSelectedKey, 'fontSize', Number(fontInput.value));
+            });
+
+            xInput.addEventListener('input', () => {
+                updateLayoutLabValue(layoutLabSelectedKey, 'x', Number(xInput.value));
+            });
+
+            yInput.addEventListener('input', () => {
+                updateLayoutLabValue(layoutLabSelectedKey, 'y', Number(yInput.value));
+            });
+
+            widthInput.addEventListener('input', () => {
+                updateLayoutLabValue(layoutLabSelectedKey, 'width', Number(widthInput.value));
+            });
+
+            heightInput.addEventListener('input', () => {
+                updateLayoutLabValue(layoutLabSelectedKey, 'height', Number(heightInput.value));
+            });
+
+            textInput.addEventListener('input', () => {
+                updateLayoutLabText(layoutLabSelectedKey, textInput.value, false);
+            });
+
+            textInput.addEventListener('change', () => {
+                updateLayoutLabText(layoutLabSelectedKey, textInput.value, true);
+            });
+
+            copyBtn.addEventListener('click', async () => {
+                const text = JSON.stringify(layoutLabState, null, 2);
+                try {
+                    await navigator.clipboard.writeText(text);
+                    addLog('已复制布局配置 JSON，可直接发给我固化。', 'success');
+                } catch (e) {
+                    addLog('复制失败，请手动复制控制台中的配置。', 'warn');
+                    console.log('layoutLabState=', layoutLabState);
+                }
+            });
+
+            resetOneBtn.addEventListener('click', () => {
+                const key = layoutLabSelectedKey;
+                if (!layoutLabDefaults[key]) return;
+                layoutLabState[key] = { ...layoutLabDefaults[key] };
+                applyLayoutLabKey(key);
+                persistLayoutLabState();
+                syncLayoutLabControls();
+            });
+
+            resetAllBtn.addEventListener('click', () => {
+                Object.keys(layoutLabDefaults).forEach((key) => {
+                    layoutLabState[key] = { ...layoutLabDefaults[key] };
+                    applyLayoutLabKey(key);
+                });
+                persistLayoutLabState();
+                syncLayoutLabControls();
+            });
+
+            Object.keys(layoutLabElements).forEach((key) => {
+                const el = layoutLabElements[key];
+                el.addEventListener('mousedown', (event) => {
+                    if (!layoutLabEnabled) return;
+                    if (event.button !== 0) return;
+                    event.preventDefault();
+
+                    layoutLabSelectedKey = key;
+                    targetSelect.value = key;
+                    markLayoutLabSelection();
+
+                    const current = layoutLabState[key];
+                    layoutLabDrag = {
+                        key,
+                        startX: event.clientX,
+                        startY: event.clientY,
+                        initX: current.x,
+                        initY: current.y
+                    };
+                    el.classList.add('is-dragging');
+                    syncLayoutLabControls();
+                });
+            });
+
+            document.addEventListener('mousemove', (event) => {
+                if (!layoutLabDrag || !layoutLabEnabled) return;
+                const dx = event.clientX - layoutLabDrag.startX;
+                const dy = event.clientY - layoutLabDrag.startY;
+                updateLayoutLabValue(layoutLabDrag.key, 'x', Math.round(layoutLabDrag.initX + dx), false);
+                updateLayoutLabValue(layoutLabDrag.key, 'y', Math.round(layoutLabDrag.initY + dy), false);
+                syncLayoutLabControls();
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (!layoutLabDrag) return;
+                const el = layoutLabElements[layoutLabDrag.key];
+                if (el) el.classList.remove('is-dragging');
+                layoutLabDrag = null;
+                persistLayoutLabState();
+            });
+        }
+
+        function updateLayoutLabValue(key, field, value, persist = true) {
+            if (!layoutLabState[key]) return;
+            layoutLabState[key][field] = Number.isFinite(Number(value)) ? Number(value) : 0;
+            applyLayoutLabKey(key);
+            if (persist) persistLayoutLabState();
+            syncLayoutLabControls();
+        }
+
+        function updateLayoutLabText(key, text, persist = true) {
+            if (!layoutLabState[key]) return;
+            if (layoutLabMeta[key]?.type === 'box') return;
+            layoutLabState[key].text = String(text || '');
+            applyLayoutLabKey(key);
+            if (persist) persistLayoutLabState();
+        }
+
+        function applyLayoutLabKey(key) {
+            const el = layoutLabElements[key];
+            const state = layoutLabState[key];
+            const meta = layoutLabMeta[key];
+            if (!el || !state || !meta) return;
+
+            el.style.transform = `translate(${state.x}px, ${state.y}px)`;
+            el.style.fontSize = `${state.fontSize}px`;
+
+            if (meta.type === 'box') {
+                el.style.width = `${Math.max(32, state.width)}px`;
+                el.style.height = `${Math.max(24, state.height)}px`;
+            } else {
+                el.style.width = '';
+                el.style.height = '';
+                el.textContent = state.text;
+            }
+
+            layoutLabMeta[key].label = buildLayoutLabLabel(el, state.text || '', meta.type);
+        }
+
+        function syncLayoutLabControls() {
+            const targetSelect = document.getElementById('lab-target');
+            const fontInput = document.getElementById('lab-font');
+            const xInput = document.getElementById('lab-x');
+            const yInput = document.getElementById('lab-y');
+            const widthInput = document.getElementById('lab-width');
+            const heightInput = document.getElementById('lab-height');
+            const textInput = document.getElementById('lab-text');
+            const fontValue = document.getElementById('lab-font-value');
+            const xValue = document.getElementById('lab-x-value');
+            const yValue = document.getElementById('lab-y-value');
+            const widthValue = document.getElementById('lab-width-value');
+            const heightValue = document.getElementById('lab-height-value');
+
+            const current = layoutLabState[layoutLabSelectedKey] || layoutLabDefaults[layoutLabSelectedKey];
+            if (!current) return;
+
+            refreshLayoutLabTargetOptions();
+            targetSelect.value = layoutLabSelectedKey;
+            fontInput.value = String(current.fontSize);
+            xInput.value = String(current.x);
+            yInput.value = String(current.y);
+            widthInput.value = String(current.width);
+            heightInput.value = String(current.height);
+            textInput.value = String(current.text || '');
+
+            const currentMeta = layoutLabMeta[layoutLabSelectedKey];
+            const isBox = currentMeta?.type === 'box';
+            widthInput.disabled = !isBox;
+            heightInput.disabled = !isBox;
+            textInput.disabled = isBox;
+
+            fontValue.textContent = `${current.fontSize}px`;
+            xValue.textContent = `${current.x}px`;
+            yValue.textContent = `${current.y}px`;
+            widthValue.textContent = `${current.width}px`;
+            heightValue.textContent = `${current.height}px`;
+        }
+
+        function markLayoutLabSelection() {
+            clearLayoutLabSelection();
+            const el = layoutLabElements[layoutLabSelectedKey];
+            if (el) el.classList.add('is-selected');
+        }
+
+        function clearLayoutLabSelection() {
+            document.querySelectorAll('[data-edit-key].is-selected').forEach((el) => el.classList.remove('is-selected'));
+        }
+
+        function persistLayoutLabState() {
+            localStorage.setItem(LAYOUT_LAB_STORAGE_KEY, JSON.stringify(layoutLabState));
+        }
+
+        function addLog(message, type = 'info') {
+            const logBox = document.getElementById('log-box');
+            if (!logBox) return;
+            const line = document.createElement('div');
+            line.className = 'log-line' + (type === 'info' ? '' : ' ' + type);
+            line.textContent = `[${new Date().toLocaleTimeString('zh-CN', { hour12: false })}] ${message}`;
+            logBox.appendChild(line);
+        }
+
+        function setOverview(statusText) {
+            return statusText || '等待扫码';
+        }
+
+        function setStep(id, status, desc) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.className = `step ${status}`;
+            if (desc) {
+                const descEl = el.querySelector('.step-desc');
+                if (descEl) descEl.innerHTML = desc;
+            }
+        }
+
+        function setFeishuSubProgress(stage) {
+            if (stage === 'init') {
+                setStep('step-feishu', 'active', '等待用户扫码并在飞书中确认登录。');
+                setStep('step-bot', 'pending', '登录成功后自动识别并验证通信通道是否可用。');
+                setStep('step-command', 'pending', '步骤①②成功后方可点击确认发送指令。');
+                setStep('step-ip', 'pending', '等待命令执行并返回公网 IP 结果。');
+                return;
+            }
+
+            if (stage === 'scanned') {
+                setStep('step-feishu', 'active', '已扫码，等待用户在飞书 App 中确认登录。');
+                setStep('step-bot', 'pending', '登录成功后自动识别并验证通信通道是否可用。');
+                setStep('step-command', 'pending', '步骤①②成功后方可点击确认发送指令。');
+                setStep('step-ip', 'pending', '等待命令执行并返回公网 IP 结果。');
+                return;
+            }
+
+            if (stage === 'login_ok') {
+                setStep('step-feishu', 'done', '登录飞书成功。');
+                setStep('step-bot', 'active', '正在查找 openclaw 机器人并校验通信通道。');
+                setStep('step-command', 'pending', '步骤①②成功后方可点击确认发送指令。');
+                setStep('step-ip', 'pending', '等待命令执行并返回公网 IP 结果。');
+                return;
+            }
+
+            if (stage === 'bot_found') {
+                setStep('step-feishu', 'done', '登录飞书成功。');
+                setStep('step-bot', 'done', '已找到 openclaw 机器人并确认通信通道可用。');
+                setStep('step-command', 'active', '通信通道可用，等待用户确认发送指令。');
+                setStep('step-ip', 'pending', '等待命令执行并返回公网 IP 结果。');
+                return;
+            }
+
+            if (stage === 'sending') {
+                setStep('step-feishu', 'done', '登录飞书成功。');
+                setStep('step-bot', 'done', '已找到 openclaw 机器人并确认通信通道可用。');
+                setStep('step-command', 'done', '已向 openclaw 发送命令「执行 curl ifconfig.me」。');
+                setStep('step-ip', 'active', '正在等待 openclaw 返回公网 IP。');
+                return;
+            }
+
+            if (stage === 'ip_done') {
+                setStep('step-feishu', 'done', '登录飞书成功。');
+                setStep('step-bot', 'done', '已找到 openclaw 机器人并确认通信通道可用。');
+                setStep('step-command', 'done', '命令已发送并执行完成。');
+                setStep('step-ip', 'done', '已成功获取到公网 IP。');
+                return;
+            }
+        }
+
+        function setLoginError(message) {
+            setStep('step-feishu', 'error', escapeHtml(message || '飞书登录失败'));
+            setStep('step-bot', 'pending', '登录成功后自动识别并验证通信通道是否可用。');
+            setStep('step-command', 'pending', '步骤①②成功后方可点击确认发送指令。');
+            setStep('step-ip', 'pending', '等待命令执行并返回公网 IP 结果。');
+        }
+
+        function setBotError(message) {
+            setStep('step-feishu', 'done', '登录飞书成功。');
+            setStep('step-bot', 'error', escapeHtml(message || '未找到可用的 openclaw 通信通道'));
+            setStep('step-command', 'pending', '步骤①②成功后方可点击确认发送指令。');
+            setStep('step-ip', 'pending', '等待命令执行并返回公网 IP 结果。');
+        }
+
+        function setIpError(message) {
+            setStep('step-feishu', 'done', '登录飞书成功。');
+            setStep('step-bot', 'done', '已找到 openclaw 机器人并确认通信通道可用。');
+            setStep('step-command', 'done', '已向 openclaw 发送命令「执行 curl ifconfig.me」。');
+            setStep('step-ip', 'error', escapeHtml(message || '获取公网 IP 失败'));
+        }
+
+        function showScanFeedback(text, keepVisible = false) {
+            const feedback = document.getElementById('scan-feedback');
+            feedback.textContent = text;
+            feedback.classList.add('show');
+            if (!keepVisible) {
+                setTimeout(() => feedback.classList.remove('show'), 1800);
+            }
+        }
+
+        function hideScanFeedback() {
+            document.getElementById('scan-feedback').classList.remove('show');
+        }
+
+        function setQrLoginSuccess(done) {
+            const overlay = document.getElementById('qr-success-overlay');
+            const qrcode = document.getElementById('feishu-qrcode');
+            if (done) {
+                overlay.classList.add('show');
+                qrcode.classList.add('logged-in');
+            } else {
+                overlay.classList.remove('show');
+                qrcode.classList.remove('logged-in');
+            }
+        }
+
+        function resetFlowView() {
+            if (pollTimer) {
+                clearInterval(pollTimer);
+                pollTimer = null;
+            }
+            flowState = { appId: '', appSecret: '', botName: '', manageUrl: '', openId: '', ip: '' };
+            document.getElementById('feishu-loading').style.display = 'flex';
+            document.getElementById('feishu-loading').innerHTML = '<div class="qr-placeholder-icon"></div><div class="loading-text">正在生成飞书二维码...</div>';
+            document.getElementById('feishu-qrcode').style.display = 'none';
+            document.getElementById('feishu-qrcode').innerHTML = '';
+            document.getElementById('feishu-status').className = 'status-chip';
+            document.getElementById('feishu-status').textContent = '正在生成二维码';
+            document.getElementById('manage-link').style.display = 'none';
+            document.getElementById('confirm-box').style.display = 'flex';
+            document.getElementById('ip-panel').style.display = 'none';
+            const logBox = document.getElementById('log-box');
+            if (logBox) logBox.innerHTML = '';
+            hideScanFeedback();
+            setQrLoginSuccess(false);
+            document.getElementById('bot-name').textContent = '待匹配';
+            document.getElementById('confirm-send-btn').disabled = true;
+            document.getElementById('modal-confirm-btn').disabled = false;
+            setOverview('正在生成二维码');
+            setFeishuSubProgress('init');
+        }
+
+        async function initFeishuQrcode() {
+            resetFlowView();
+            addLog('开始初始化飞书扫码流程。');
+
+            try {
+                const resp = await fetch('/api/feishu/init', { method: 'POST' });
+                const data = await resp.json();
+                if (!data.success) {
+                    throw new Error(data.error || '初始化失败');
+                }
+
+                feishuSessionId = data.session_id;
+                renderQrcode(data.qr_content);
+                document.getElementById('feishu-status').textContent = '等待扫码';
+                setOverview('等待扫码');
+                addLog('飞书二维码已生成，请扫码。', 'success');
+                startPolling();
+            } catch (error) {
+                document.getElementById('feishu-status').className = 'status-chip';
+                document.getElementById('feishu-status').textContent = '二维码生成失败';
+                document.getElementById('feishu-loading').innerHTML = '<div class="loading-text" style="color:#FF3B30;">二维码生成失败：' + escapeHtml(error.message) + '</div>';
+                setOverview('初始化失败');
+                setLoginError(error.message || '初始化失败');
+                addLog('初始化失败：' + error.message, 'error');
+            }
+        }
+
+        function renderQrcode(content) {
+            const loading = document.getElementById('feishu-loading');
+            const qrcode = document.getElementById('feishu-qrcode');
+            const panel = document.getElementById('qr-panel');
+            const size = Math.max(170, Math.min(panel.clientWidth - 40, panel.clientHeight - 40, 250));
+            loading.style.display = 'none';
+            qrcode.style.display = 'block';
+            qrcode.innerHTML = '';
+            new QRCode(qrcode, {
+                text: content,
+                width: size,
+                height: size,
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        }
+
+        function startPolling() {
+            pollTimer = setInterval(async () => {
+                if (!feishuSessionId) return;
+                try {
+                    const resp = await fetch('/api/feishu/poll', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ session_id: feishuSessionId })
+                    });
+                    const data = await resp.json();
+                    handlePollResult(data);
+                } catch (error) {
+                    addLog('轮询异常：' + error.message, 'error');
+                }
+            }, 2000);
+        }
+
+        function handlePollResult(data) {
+            const statusChip = document.getElementById('feishu-status');
+
+            if (data.status === 'scanned') {
+                statusChip.className = 'status-chip info';
+                statusChip.textContent = '已扫码，请确认';
+                setOverview('已扫码待确认');
+                setFeishuSubProgress('scanned');
+                showScanFeedback('扫码成功，请在飞书 App 点击确认登录。', true);
+                return;
+            }
+
+            if (data.status === 'pending') {
+                statusChip.className = 'status-chip';
+                statusChip.textContent = '等待扫码';
+                setOverview('等待扫码');
+                hideScanFeedback();
+                return;
+            }
+
+            if (data.status === 'expired') {
+                clearInterval(pollTimer);
+                pollTimer = null;
+                statusChip.textContent = '二维码已过期';
+                setOverview('二维码已过期');
+                addLog('二维码已过期，准备重新生成。', 'warn');
+                setTimeout(() => initFeishuQrcode(), 800);
+                return;
+            }
+
+            if (data.status === 'login_ok') {
+                statusChip.className = 'status-chip success';
+                statusChip.textContent = '登录成功';
+                setOverview('登录成功');
+                setQrLoginSuccess(true);
+                setFeishuSubProgress('login_ok');
+                showScanFeedback('登录成功，正在查找 openclaw 机器人...');
+                addLog('登录飞书成功，正在查找 openclaw 机器人。', 'success');
+                return;
+            }
+
+            if (data.status === 'completed') {
+                clearInterval(pollTimer);
+                pollTimer = null;
+                statusChip.className = 'status-chip success';
+                statusChip.textContent = '登录成功';
+                setQrLoginSuccess(true);
+                showScanFeedback('通信通道已确认可用。');
+
+                flowState.appId = data.app_id || '';
+                flowState.appSecret = data.app_secret || '';
+                flowState.botName = data.bot_name || '未命名机器人';
+                flowState.manageUrl = data.manage_url || '';
+                flowState.openId = data.open_id || '';
+                flowState.ip = data.openclaw_ip || '';
+
+                document.getElementById('bot-name').textContent = flowState.botName;
+                document.getElementById('confirm-send-btn').disabled = false;
+                setOverview('通道可用，待确认发送');
+                setFeishuSubProgress('bot_found');
+
+                if (flowState.manageUrl) {
+                    const link = document.getElementById('manage-link');
+                    link.href = flowState.manageUrl;
+                    link.style.display = 'inline-flex';
+                }
+
+                addLog('已找到 openclaw 机器人：' + flowState.botName, 'success');
+
+                if (flowState.ip) {
+                    applyIpResult(flowState.ip, true);
+                }
+                return;
+            }
+
+            if (data.status === 'error') {
+                clearInterval(pollTimer);
+                pollTimer = null;
+                hideScanFeedback();
+                setQrLoginSuccess(false);
+                statusChip.textContent = '流程失败';
+                setOverview('流程失败');
+                const message = data.message || '扫码流程失败';
+                if (String(message).includes('机器人') || String(message).includes('通道')) {
+                    setBotError(message);
+                } else {
+                    setLoginError(message);
+                }
+                addLog('扫码流程失败：' + message, 'error');
+            }
+        }
+
+        function openConfirmModal() {
+            document.getElementById('confirm-modal').style.display = 'flex';
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').style.display = 'none';
+        }
+
+        async function confirmSendCommand() {
+            closeConfirmModal();
+            const confirmBtn = document.getElementById('confirm-send-btn');
+            const modalBtn = document.getElementById('modal-confirm-btn');
+            confirmBtn.disabled = true;
+            modalBtn.disabled = true;
+
+            setOverview('命令发送中');
+            setFeishuSubProgress('sending');
+            addLog('用户已确认发送命令：执行 curl ifconfig.me');
+
+            try {
+                const resp = await fetch('/api/feishu/get-openclaw-ip', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: feishuSessionId })
+                });
+                const data = await resp.json();
+
+                if (!data.success || !data.ip) {
+                    throw new Error(data.error || '未获取到公网 IP');
+                }
+
+                applyIpResult(data.ip, false);
+                addLog('成功获取公网 IP：' + data.ip, 'success');
+            } catch (error) {
+                setOverview('命令执行失败');
+                setIpError(error.message);
+                addLog('获取公网 IP 失败：' + error.message, 'error');
+                confirmBtn.disabled = false;
+                modalBtn.disabled = false;
+            }
+        }
+
+        function applyIpResult(ip, alreadyReady) {
+            flowState.ip = ip;
+            document.getElementById('ip-value').textContent = ip;
+            document.getElementById('ip-panel').style.display = 'block';
+            setOverview('已成功获取公网 IP');
+            setFeishuSubProgress('ip_done');
+            if (alreadyReady) {
+                addLog('已直接拿到 openclaw 公网 IP：' + ip, 'success');
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+    </script>
+</body>
+</html>

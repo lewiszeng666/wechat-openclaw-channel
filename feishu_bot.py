@@ -209,7 +209,7 @@ LOGIN_URL = (
     "?app_id=7&no_trap=1"
     "&redirect_uri=https%3A%2F%2Fopen.feishu.cn%2Fapp"
 )
-LOGIN_TIMEOUT = 90
+LOGIN_TIMEOUT = 300  # 飞书二维码有效期，与企微邀请二维码保持一致（5分钟）
 POLL_INTERVAL = 2
 
 AVATAR_URL = "https://90-1251810746.cos.ap-guangzhou.myqcloud.com/ico.png"
@@ -297,6 +297,198 @@ def _send_test_message(app_id: str, app_secret: str, open_id: str) -> bool:
         return False
 
 
+def _get_openclaw_ip_via_messenger(page, preferred_bot_name: Optional[str] = None) -> Optional[str]:
+    """
+    通过飞书网页版给机器人发送命令获取 OpenClaw 部署机 IP
+
+    流程：
+    1. 导航到飞书消息页面
+    2. 打开机器人对话（支持搜索）
+    3. 发送 "执行 curl ifconfig.me" 命令
+    4. 等待机器人返回 IP 地址
+    """
+    import re
+
+    try:
+        _log("    [获取IP] 导航到飞书消息页...")
+        page.goto("https://www.feishu.cn/messenger/", wait_until="domcontentloaded", timeout=30000)
+        page.wait_for_timeout(3000)
+
+        current_url = page.url
+        _log(f"    [获取IP] 当前页面URL: {current_url}")
+
+        if "passport" in current_url or "accounts" in current_url or "login" in current_url:
+            _log("    [获取IP] 页面需要登录，跳过获取IP")
+            return None
+
+        try:
+            screenshot_path = "/tmp/feishu-messenger-debug.png"
+            page.screenshot(path=screenshot_path)
+            _log(f"    [获取IP] 截图已保存: {screenshot_path}")
+        except Exception as e:
+            _log(f"    [获取IP] 截图失败: {e}")
+
+        _log("    [获取IP] 查找机器人对话...")
+        bot_keywords = [
+            preferred_bot_name or "",
+            "lewis-openclaw2",
+            "lewis-openclaw",
+            "OpenClaw",
+            "openclaw",
+        ]
+        bot_keywords = [k for k in bot_keywords if k]
+
+        def _try_click_bot(keyword: str) -> bool:
+            # 直接在会话列表中点击
+            for selector in [f'text={keyword}', f'[title*="{keyword}"]']:
+                try:
+                    node = page.locator(selector).first
+                    if node.count() > 0:
+                        node.click(timeout=2000)
+                        page.wait_for_timeout(1200)
+                        return True
+                except Exception:
+                    pass
+
+            # 使用搜索框搜索后再点击
+            for search_selector in [
+                'input[placeholder*="搜索"]',
+                'input[aria-label*="搜索"]',
+                'input[placeholder*="Search"]',
+            ]:
+                try:
+                    search_box = page.locator(search_selector).first
+                    if search_box.count() == 0:
+                        continue
+                    search_box.click(timeout=2000)
+                    page.keyboard.press("Meta+A" if platform.system() == "Darwin" else "Control+A")
+                    page.keyboard.press("Backspace")
+                    page.keyboard.type(keyword)
+                    page.wait_for_timeout(1200)
+
+                    node = page.locator(f'text={keyword}').first
+                    if node.count() > 0:
+                        node.click(timeout=2000)
+                        page.wait_for_timeout(1200)
+                        return True
+                except Exception:
+                    pass
+
+            # 兜底：快捷搜索
+            try:
+                page.keyboard.press("Meta+K" if platform.system() == "Darwin" else "Control+K")
+                page.wait_for_timeout(300)
+                page.keyboard.type(keyword)
+                page.wait_for_timeout(300)
+                page.keyboard.press("Enter")
+                page.wait_for_timeout(1500)
+                return True
+            except Exception:
+                return False
+
+        bot_found = False
+        for keyword in bot_keywords:
+            if _try_click_bot(keyword):
+                bot_found = True
+                _log(f"    [获取IP] 已打开机器人对话: {keyword}")
+                break
+
+        if not bot_found:
+            _log("    [获取IP] 未找到机器人对话")
+            try:
+                body_text = page.locator('body').inner_text()[:500]
+                _log(f"    [获取IP] 页面内容: {body_text}")
+            except Exception:
+                pass
+            return None
+
+        command = "执行 curl ifconfig.me"
+        _log(f"    [获取IP] 发送命令: {command}")
+
+        input_box = None
+        # 优先命中聊天底部输入框，避免选到不可见的编辑器节点
+        try:
+            footer_box = page.locator('footer [contenteditable="true"]').first
+            if footer_box.count() > 0:
+                input_box = footer_box
+        except Exception:
+            pass
+
+        if not input_box:
+            for selector in [
+                'div[contenteditable="true"][role="textbox"]',
+                '[contenteditable="true"]',
+            ]:
+                try:
+                    box = page.locator(selector).first
+                    if box.count() > 0:
+                        input_box = box
+                        break
+                except Exception:
+                    pass
+
+        if not input_box:
+            _log("    [获取IP] 未找到输入框")
+            return None
+
+        try:
+            # 直接通过 DOM 聚焦并写入文本，避免 headless 场景下点击越界
+            injected = page.evaluate(
+                """(cmd) => {
+                    const el = document.querySelector('footer [contenteditable="true"]')
+                        || document.querySelector('div[contenteditable="true"][role="textbox"]')
+                        || document.querySelector('[contenteditable="true"]');
+                    if (!el) return false;
+                    el.focus();
+                    el.innerHTML = '';
+                    document.execCommand('insertText', false, cmd);
+                    return true;
+                }""",
+                command,
+            )
+            if not injected:
+                _log("    [获取IP] 未能写入命令文本")
+                return None
+
+            page.wait_for_timeout(300)
+            page.keyboard.press("Enter")
+            _log("    [获取IP] 命令已发送")
+        except Exception as e:
+            _log(f"    [获取IP] 发送命令失败: {e}")
+            return None
+
+        _log("    [获取IP] 等待机器人回复...")
+        max_wait_seconds = 90
+        for i in range(max_wait_seconds):
+            page.wait_for_timeout(1000)
+            try:
+                chat_area = page.locator('main').first
+                if chat_area.count() > 0:
+                    text_content = chat_area.inner_text()
+                    ip_matches = re.findall(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', text_content)
+                    if ip_matches:
+                        public_ips = [
+                            ip for ip in ip_matches
+                            if not ip.startswith(('10.', '192.168.', '172.16.', '127.', '0.'))
+                        ]
+                        if public_ips:
+                            ip = public_ips[-1]
+                            _log(f"    [获取IP] 成功获取: {ip}")
+                            return ip
+            except Exception:
+                pass
+
+            if i % 5 == 4:
+                _log(f"    [获取IP] 等待中... {i + 1}s")
+
+        _log(f"    [获取IP] 等待超时({max_wait_seconds}s)，未获取到 IP")
+        return None
+
+    except Exception as e:
+        _log(f"    [获取IP] 异常: {e}")
+        return None
+
+
 def _find_existing_openclaw_bot(creator: "FeishuBotCreator") -> Optional[dict]:
     """
     查找已存在的、已配置好的 OpenClaw 机器人。
@@ -364,49 +556,33 @@ def _find_existing_openclaw_bot(creator: "FeishuBotCreator") -> Optional[dict]:
         
         _log(f"  检查应用: {app_name} (app_id={app_id}, status={app_status}, ability={list_ability})")
         
-        # 获取应用详情
-        detail = creator._get(f"{API_BASE}/app/{app_id}")
-        if not detail or detail.get("code") not in (0, 10000):
-            _log(f"    [跳过] 无法获取应用详情")
-            continue
-        
-        app_data = detail.get("data", {})
-        _log(f"    应用详情字段: {list(app_data.keys())}")
-        
+        # 直接根据列表数据判断（避免额外请求导致浏览器问题）
         # 检查是否有机器人能力
-        abilities = app_data.get("abilities", [])
-        has_bot = False
-        for ab in abilities:
-            ab_id = ab.get("abilityId") or ab.get("ability_id") or ab.get("type") or ab.get("id") or ""
-            if "robot" in str(ab_id).lower() or "bot" in str(ab_id).lower():
-                has_bot = True
-                break
-        
-        robot_enabled = app_data.get("robotEnabled", False) or app_data.get("robot_enabled", False)
-        
-        # 综合判断：列表里有、详情里有、或 robotEnabled 为 True
-        if not has_bot and not robot_enabled and not has_bot_in_list:
-            _log(f"    [跳过] 没有机器人能力 (abilities={abilities}, robotEnabled={robot_enabled})")
+        if not has_bot_in_list:
+            _log(f"    [跳过] 没有机器人能力 (ability={list_ability})")
             continue
         
-        # 检查应用状态
-        actual_status = app_data.get("appStatus", app_data.get("app_status", app_status))
-        if actual_status < 1:
-            _log(f"    [跳过] 应用未上线 (status={actual_status})")
+        # 检查应用状态（status >= 1 表示已上线）
+        if app_status < 1:
+            _log(f"    [跳过] 应用未上线 (status={app_status})")
             continue
         
         # 尝试获取 app_secret
         secret_body = creator._get(f"{API_BASE}/secret/{app_id}")
-        if not secret_body or secret_body.get("code") not in (0, 10000):
-            _log(f"    [跳过] 无法获取 app_secret")
+        if not secret_body:
+            _log(f"    [跳过] 无法获取 app_secret (返回空)")
+            continue
+        if secret_body.get("code") not in (0, 10000):
+            _log(f"    [跳过] 无法获取 app_secret (code={secret_body.get('code')}, msg={secret_body.get('msg', '')[:50]})")
             continue
         
         secret_data = secret_body.get("data", {})
+        _log(f"    secret 响应字段: {list(secret_data.keys())}")
         app_secret = (secret_data.get("appSecret") or secret_data.get("app_secret") 
                       or secret_data.get("secret") or secret_data.get("AppSecret"))
         
         if not app_secret:
-            _log(f"    [跳过] app_secret 为空")
+            _log(f"    [跳过] app_secret 为空, data={json.dumps(secret_data, ensure_ascii=False)[:100]}")
             continue
         
         _log(f"    [候选] 可用: {app_name} (app_id={app_id})")
@@ -855,11 +1031,27 @@ class FeishuBotCreator:
         return True
 
     def step9_get_owner_open_id(self) -> Optional[str]:
+        """获取应用 Owner 的 open_id
+        
+        尝试多种方式：
+        1. 从飞书开放平台页面的网络响应中捕获（最可靠）
+        2. 通过 contact:user.id:readonly 权限调用 API
+        3. 通过通讯录权限调用 API
+        """
         _log("[步骤 9] 获取应用 Owner 的 open_id")
         if not self.app_id or not self.app_secret:
             _log("  [跳过] 缺少 app_id 或 app_secret")
             return None
 
+        # 方法 1: 从页面网络响应中捕获 open_id
+        _log("  方法1: 从页面网络响应捕获 open_id...")
+        open_id = self._capture_open_id_from_page()
+        if open_id:
+            _log(f"  [成功] 从页面捕获到 open_id: {open_id}")
+            return open_id
+
+        # 方法 2: 通过 API 获取
+        _log("  方法2: 通过 API 获取 open_id...")
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
@@ -901,7 +1093,8 @@ class FeishuBotCreator:
                 user_data = json.loads(resp.read())
         except urllib.error.HTTPError as e:
             body = e.read().decode()
-            _log(f"  [失败] HTTP {e.code}: {body[:300]}")
+            _log(f"  [失败] HTTP {e.code}: {body[:200]}")
+            _log("  [提示] 需要通讯录权限，尝试其他方法...")
             return None
         except Exception as e:
             _log(f"  [失败] 查询用户: {e}")
@@ -917,6 +1110,196 @@ class FeishuBotCreator:
         name = owner.get("name", "未知")
         _log(f"  [成功] 用户: {name}, open_id: {open_id}")
         return open_id
+
+    def _capture_open_id_from_page(self) -> Optional[str]:
+        """从飞书开放平台 API 调试台获取当前用户的 open_id
+        
+        核心方法：在 API 调试台使用"快速复制 open_id"功能
+        """
+        import re
+        
+        found_open_ids = []
+        
+        def on_response(resp):
+            try:
+                ct = resp.headers.get('content-type', '')
+                if 'json' not in ct and 'text' not in ct:
+                    return
+                body = resp.text()
+                # 查找 ou_ 开头的 open_id (32位十六进制)
+                matches = re.findall(r'ou_[a-f0-9]{32}', body)
+                for m in matches:
+                    if m not in found_open_ids:
+                        found_open_ids.append(m)
+                        _log(f"    捕获到 open_id: {m} (来自 {resp.url[:60]})")
+            except:
+                pass
+        
+        self.page.on("response", on_response)
+        
+        try:
+            # 1. 访问 API 调试台 - 发送消息接口
+            _log("    访问 API 调试台...")
+            try:
+                self.page.goto(f"{BASE_URL}/api-explorer/{self.app_id}?apiName=im.v1.message.create&project=im", 
+                              wait_until="domcontentloaded", timeout=30000)
+                self.page.wait_for_timeout(4000)
+                self.page.screenshot(path="/tmp/api_debug_step1.png")
+                _log("    截图: /tmp/api_debug_step1.png")
+            except Exception as e:
+                _log(f"    API调试台加载失败: {e}")
+                return None
+            
+            # 2. 查找 receive_id 输入框并点击
+            _log("    查找 receive_id 输入框...")
+            
+            # 飞书 API 调试台的输入框通常在表单中
+            # 尝试多种方式定位
+            input_found = False
+            
+            # 方法 A: 通过 placeholder 找输入框
+            for placeholder in ["receive_id", "消息接收者", "用户"]:
+                try:
+                    inp = self.page.locator(f'input[placeholder*="{placeholder}"]').first
+                    if inp.count() > 0:
+                        inp.click()
+                        _log(f"    点击了输入框 (placeholder={placeholder})")
+                        input_found = True
+                        self.page.wait_for_timeout(1500)
+                        break
+                except:
+                    pass
+            
+            # 方法 B: 查找 receive_id 标签旁边的输入框
+            if not input_found:
+                try:
+                    # 找到包含 receive_id 文字的元素
+                    label = self.page.locator('text=receive_id').first
+                    if label.count() > 0:
+                        # 点击其父元素或相邻的输入框
+                        parent = label.locator('xpath=ancestor::div[contains(@class, "field") or contains(@class, "item") or contains(@class, "row")]').first
+                        if parent.count() > 0:
+                            inp = parent.locator('input').first
+                            if inp.count() > 0:
+                                inp.click()
+                                _log("    点击了 receive_id 旁的输入框")
+                                input_found = True
+                                self.page.wait_for_timeout(1500)
+                except Exception as e:
+                    _log(f"    方法B失败: {e}")
+            
+            # 方法 C: 点击所有可见输入框中的第一个
+            if not input_found:
+                try:
+                    all_inputs = self.page.locator('input:visible')
+                    for i in range(min(5, all_inputs.count())):
+                        inp = all_inputs.nth(i)
+                        placeholder = inp.get_attribute('placeholder') or ''
+                        _log(f"    输入框[{i}] placeholder='{placeholder}'")
+                except:
+                    pass
+            
+            self.page.screenshot(path="/tmp/api_debug_step2.png")
+            _log("    截图: /tmp/api_debug_step2.png")
+            
+            # 3. 尝试触发用户选择器
+            _log("    尝试触发用户选择器...")
+            
+            # 查找可能的选择按钮/图标
+            selectors_to_try = [
+                'button:has-text("选择")',
+                'button:has-text("快速")',
+                '[class*="picker"]',
+                '[class*="select"]',
+                '[class*="icon-user"]',
+                '[class*="icon-add"]',
+                'svg[class*="icon"]',
+            ]
+            
+            for sel in selectors_to_try:
+                try:
+                    els = self.page.locator(sel)
+                    if els.count() > 0:
+                        _log(f"    找到 {els.count()} 个 '{sel}' 元素")
+                        els.first.click()
+                        self.page.wait_for_timeout(2000)
+                        self.page.screenshot(path="/tmp/api_debug_step3.png")
+                        _log(f"    点击了 {sel}，截图: /tmp/api_debug_step3.png")
+                        break
+                except:
+                    pass
+            
+            # 4. 如果弹出了用户选择框，尝试选择当前用户
+            _log("    检查是否弹出用户选择框...")
+            try:
+                # 查找弹出框中的用户列表
+                popup = self.page.locator('[class*="popup"], [class*="modal"], [class*="dialog"], [class*="dropdown"]').first
+                if popup.count() > 0 and popup.is_visible():
+                    _log("    发现弹出框")
+                    
+                    # 尝试点击第一个用户选项
+                    user_item = popup.locator('[class*="item"], [class*="option"], [class*="user"]').first
+                    if user_item.count() > 0:
+                        user_item.click()
+                        _log("    点击了用户选项")
+                        self.page.wait_for_timeout(2000)
+            except Exception as e:
+                _log(f"    弹出框处理失败: {e}")
+            
+            self.page.screenshot(path="/tmp/api_debug_final.png")
+            _log("    最终截图: /tmp/api_debug_final.png")
+            
+            # 5. 从页面存储中提取
+            _log("    检查页面存储...")
+            try:
+                storage_open_ids = self.page.evaluate("""() => {
+                    const ids = [];
+                    // localStorage
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const val = localStorage.getItem(localStorage.key(i)) || '';
+                        const matches = val.match(/ou_[a-f0-9]{32}/g);
+                        if (matches) ids.push(...matches);
+                    }
+                    // sessionStorage  
+                    for (let i = 0; i < sessionStorage.length; i++) {
+                        const val = sessionStorage.getItem(sessionStorage.key(i)) || '';
+                        const matches = val.match(/ou_[a-f0-9]{32}/g);
+                        if (matches) ids.push(...matches);
+                    }
+                    // 全局变量
+                    const checkVars = ['__INITIAL_STATE__', '__USER__', 'user', 'userInfo', '__PRELOADED_STATE__'];
+                    for (const v of checkVars) {
+                        if (window[v]) {
+                            try {
+                                const str = JSON.stringify(window[v]);
+                                const matches = str.match(/ou_[a-f0-9]{32}/g);
+                                if (matches) ids.push(...matches);
+                            } catch {}
+                        }
+                    }
+                    return [...new Set(ids)];
+                }""")
+                if storage_open_ids:
+                    for oid in storage_open_ids:
+                        if oid not in found_open_ids:
+                            found_open_ids.append(oid)
+                            _log(f"    从页面存储捕获: {oid}")
+            except Exception as e:
+                _log(f"    检查存储失败: {e}")
+                
+        except Exception as e:
+            _log(f"    [警告] 页面访问失败: {e}")
+        finally:
+            try:
+                self.page.remove_listener("response", on_response)
+            except:
+                pass
+        
+        if found_open_ids:
+            _log(f"    共找到 {len(found_open_ids)} 个 open_id")
+            return found_open_ids[0]
+        _log("    未找到任何 open_id")
+        return None
 
 
 # ============================================================
@@ -942,7 +1325,7 @@ def _get_chromium_path() -> str:
 
 
 def _launch_detached_chromium() -> int:
-    """启动独立的 Chromium 进程 (headless, CDP 端口)，返回 PID。"""
+    """启动独立的 Chromium 进程 (CDP 端口)，返回 PID。"""
     chrome_path = _get_chromium_path()
     if not os.path.isfile(chrome_path):
         raise FileNotFoundError(f"Chromium 不存在: {chrome_path}")
@@ -1108,7 +1491,20 @@ def cmd_init():
 def cmd_poll():
     data = _load_state()
 
-    if data.get("phase") not in ("init",):
+    # 如果已完成，直接返回保存的结果
+    if data.get("phase") == "done":
+        _output_json({
+            "status": "ok",
+            "app_id": data.get("app_id"),
+            "app_secret": data.get("app_secret"),
+            "bot_name": data.get("bot_name"),
+            "open_id": data.get("open_id"),
+            "openclaw_ip": data.get("openclaw_ip"),
+            "manage_url": data.get("manage_url"),
+        })
+        sys.exit(0)
+
+    if data.get("phase") not in ("init", "login_ok"):
         _output_json({"status": "error", "message": f"当前阶段为 {data.get('phase')}，请先运行 init"})
         sys.exit(1)
 
@@ -1168,13 +1564,16 @@ def cmd_poll():
         state["login_ok"] = True
 
     if not state["login_ok"]:
-        # 最多等待 2s 重试 1 次
-        for _ in range(1):
-            page.wait_for_timeout(2000)
+        # 最多等待 5s，每 500ms 检查一次
+        for _ in range(10):
+            page.wait_for_timeout(500)
             if state["login_ok"]:
                 break
             current_url = page.url
-            if "open.feishu.cn" in current_url and "accounts.feishu.cn" not in current_url:
+            # 检查是否已跳转到开放平台或应用管理页
+            if ("open.feishu.cn" in current_url and "accounts.feishu.cn" not in current_url) or \
+               "console.feishu.cn" in current_url or \
+               "/app/" in current_url:
                 state["login_ok"] = True
                 break
 
@@ -1187,8 +1586,16 @@ def cmd_poll():
         _output_json({"status": "pending", "message": "等待扫码"})
         sys.exit(2)
 
-    # ---- 登录成功！确保在开放平台 ----
-    _log("[poll] 扫码登录成功!")
+    # ---- 登录成功！先返回一次 login_ok 给前端，快速点亮第1步 ----
+    if data.get("phase") != "login_ok":
+        _log("[poll] 扫码登录成功，先返回 login_ok")
+        _save_state({**data, "phase": "login_ok"})
+        pw.stop()
+        _output_json({"status": "login_ok", "message": "登录飞书成功，正在查找机器人"})
+        sys.exit(2)
+
+    # ---- 已登录：继续查找机器人 ----
+    _log("[poll] 已登录，开始查找 OpenClaw 机器人")
     if "accounts.feishu.cn" in page.url:
         _log("[poll] 跳转到开放平台...")
         page.goto(APP_PAGE, wait_until="domcontentloaded", timeout=30000)
@@ -1221,22 +1628,35 @@ def cmd_poll():
     _log(f"[复用] 已获取凭证: app_id={creator.app_id}, app_secret={creator.app_secret[:10]}...")
 
     # 获取用户 open_id（用于后续发送消息）
+    _log("[poll] 开始获取 open_id...")
     open_id = creator.step9_get_owner_open_id()
+    _log(f"[poll] open_id 获取结果: {open_id}")
 
-    # 全部完成，关闭浏览器
-    _kill_cdp_browser()
-    pw.stop()
-
+    # 登录成功后先保存机器人信息，等待用户在前端点击确认后再发送获取 IP 的命令
+    manage_url = f"{BASE_URL}/app/{creator.app_id}"
     result = {
         "status": "ok",
         "app_id": creator.app_id,
         "app_secret": creator.app_secret,
         "bot_name": bot_name,
         "open_id": open_id,
-        "manage_url": f"{BASE_URL}/app/{creator.app_id}",
+        "openclaw_ip": data.get("openclaw_ip"),
+        "manage_url": manage_url,
     }
 
-    _save_state({"phase": "done", **result})
+    _save_state({
+        **data,
+        "phase": "done",
+        "app_id": creator.app_id,
+        "app_secret": creator.app_secret,
+        "bot_name": bot_name,
+        "open_id": open_id,
+        "openclaw_ip": data.get("openclaw_ip"),
+        "manage_url": manage_url,
+    })
+
+    # 断开 Playwright，保留扫码会话浏览器，供后续 get_ip 复用
+    pw.stop()
     sys.stdout.write(json.dumps(result, ensure_ascii=False) + "\n")
     sys.stdout.flush()
 
@@ -1252,6 +1672,134 @@ def cmd_cleanup():
 
 
 # ============================================================
+# 命令: get_ip
+# 通过飞书网页版获取 OpenClaw 部署机 IP
+# ============================================================
+def cmd_get_ip():
+    """
+    在用户确认后，通过飞书网页版给 OpenClaw 发送固定命令并获取公网 IP。
+
+    优先复用扫码登录阶段保留的浏览器会话；若会话失效，再回退到系统 Chrome 登录态。
+    """
+    data = _load_state()
+
+    if data.get("phase") != "done":
+        _output_json({"status": "error", "message": "请先完成扫码登录"})
+        sys.exit(1)
+
+    if data.get("openclaw_ip"):
+        _output_json({"status": "ok", "ip": data["openclaw_ip"]})
+        sys.exit(0)
+
+    from playwright.sync_api import sync_playwright
+
+    def _save_ip_and_exit(ip: str):
+        data["openclaw_ip"] = ip
+        _save_state(data)
+        _output_json({"status": "ok", "ip": ip})
+        sys.exit(0)
+
+    # 先尝试复用扫码时的浏览器会话
+    cdp_url = data.get("cdp_url")
+    if cdp_url:
+        _log(f"[get_ip] 尝试复用扫码浏览器: {cdp_url}")
+        pw = sync_playwright().start()
+        try:
+            browser = pw.chromium.connect_over_cdp(cdp_url)
+            contexts = browser.contexts
+            if not contexts or not contexts[0].pages:
+                raise RuntimeError("扫码浏览器中没有可用页面")
+
+            page = contexts[0].pages[0]
+            ip = _get_openclaw_ip_via_messenger(page, data.get("bot_name"))
+            if ip:
+                _log(f"[get_ip] 复用扫码会话成功获取 IP: {ip}")
+                _kill_cdp_browser()
+                try:
+                    pw.stop()
+                except Exception:
+                    pass
+                _save_ip_and_exit(ip)
+            else:
+                _log("[get_ip] 扫码会话未获取到 IP，准备回退系统 Chrome")
+        except Exception as e:
+            _log(f"[get_ip] 复用扫码会话失败: {e}")
+        finally:
+            try:
+                pw.stop()
+            except Exception:
+                pass
+
+    _log("[get_ip] 扫码浏览器不可用，重启独立 Chromium 会话重试...")
+
+    # 兜底方案：重启 init 使用的独立 Chromium（同一 profile，可复用扫码登录态）
+    _kill_cdp_browser()
+    chrome_pid = _launch_detached_chromium()
+
+    if not _wait_for_cdp_ready(timeout=20):
+        _kill_cdp_browser()
+        _output_json({
+            "status": "error",
+            "message": "浏览器重启后 CDP 端口未就绪，请重新扫码",
+            "logs": _log_buffer[-20:]
+        })
+        sys.exit(1)
+
+    cdp_url = f"http://127.0.0.1:{CDP_PORT}"
+    _save_state({**data, "chrome_pid": chrome_pid, "cdp_url": cdp_url})
+
+    pw = sync_playwright().start()
+    try:
+        browser = pw.chromium.connect_over_cdp(cdp_url)
+        contexts = browser.contexts
+        if not contexts:
+            context = browser.new_context()
+        else:
+            context = contexts[0]
+
+        pages = context.pages
+        if pages:
+            page = pages[0]
+        else:
+            page = context.new_page()
+
+        _log("[get_ip] 已连接重启后的 Chromium")
+        ip = _get_openclaw_ip_via_messenger(page, data.get("bot_name"))
+
+        if ip:
+            _log(f"[get_ip] 成功获取 IP: {ip}")
+            _kill_cdp_browser()
+            try:
+                pw.stop()
+            except Exception:
+                pass
+            _save_ip_and_exit(ip)
+
+        _log("[get_ip] 获取 IP 失败")
+        _kill_cdp_browser()
+        try:
+            pw.stop()
+        except Exception:
+            pass
+        _output_json({
+            "status": "error",
+            "message": "获取 IP 失败，请确保机器人已连接 OpenClaw",
+            "logs": _log_buffer[-20:]
+        })
+        sys.exit(1)
+
+    except Exception as e:
+        _log(f"[get_ip] 异常: {e}")
+        _kill_cdp_browser()
+        try:
+            pw.stop()
+        except Exception:
+            pass
+        _output_json({"status": "error", "message": str(e), "logs": _log_buffer[-20:]})
+        sys.exit(1)
+
+
+# ============================================================
 # 入口
 # ============================================================
 def main():
@@ -1259,9 +1807,10 @@ def main():
         print("用法:")
         print(f"  {sys.argv[0]} init       启动浏览器，获取二维码内容 (JSON)")
         print(f"  {sys.argv[0]} poll       检测扫码状态，成功后自动 create + apply")
+        print(f"  {sys.argv[0]} get_ip     通过飞书消息获取 OpenClaw 部署机 IP")
         print(f"  {sys.argv[0]} cleanup    关闭残留浏览器，清理状态")
         print()
-        print("流程: init → (前端展示二维码) → poll (循环直到成功)")
+        print("流程: init → (前端展示二维码) → poll (循环直到成功) → get_ip")
         print("exit code: 0=成功, 1=错误, 2=等待中(poll)")
         sys.exit(0)
 
@@ -1271,6 +1820,8 @@ def main():
         cmd_init()
     elif cmd == "poll":
         cmd_poll()
+    elif cmd == "get_ip":
+        cmd_get_ip()
     elif cmd == "cleanup":
         cmd_cleanup()
     else:

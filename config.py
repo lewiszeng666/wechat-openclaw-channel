@@ -23,7 +23,12 @@ class Config:
     
     # Web服务配置
     HOST = os.environ.get('HOST', '0.0.0.0')
-    PORT = int(os.environ.get('PORT', 5000))
+    PORT = int(os.environ.get('PORT', 5001))
     
     # 飞书状态文件
     FEISHU_STATE_FILE = '/tmp/feishu-bot-creator-state.json'
+    
+    # OpenClaw 服务配置（一次性配置）
+    # 新成员应用的回调 URL 格式: http://{OPENCLAW_HOST}:3000/wecom
+    OPENCLAW_HOST = os.environ.get('OPENCLAW_HOST', '')
+    OPENCLAW_CALLBACK_PORT = int(os.environ.get('OPENCLAW_CALLBACK_PORT', 3000))

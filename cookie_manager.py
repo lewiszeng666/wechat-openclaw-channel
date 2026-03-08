@@ -1,190 +1,263 @@
 """
-企业微信Cookie管理器
-包含：预存Cookie方案 + 有效性检测 + 自动刷新提醒
+企业微信浏览器会话管理器
+使用持久化浏览器目录 + Cookie文件保持登录状态
+Session Cookie 需要手动导出/注入，因为 Chromium 不持久化它们
+24小时刷新一次即可
 """
 import json
 import os
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, BrowserContext
 
 
-class WeComCookieManager:
-    """企业微信Cookie管理器"""
+# 持久化浏览器目录
+BROWSER_DATA_DIR = os.path.join(os.path.dirname(__file__), "browser_data")
+SESSION_INFO_FILE = os.path.join(BROWSER_DATA_DIR, "session_info.json")
+
+
+def get_browser_data_dir(corp_id: str) -> str:
+    """获取指定企业的浏览器数据目录"""
+    return os.path.join(BROWSER_DATA_DIR, corp_id)
+
+
+def get_cookies_file(corp_id: str) -> str:
+    """获取Cookie文件路径"""
+    return os.path.join(get_browser_data_dir(corp_id), "session_cookies.json")
+
+
+def save_cookies(context: BrowserContext, corp_id: str) -> List[dict]:
+    """从浏览器Context导出Cookie到文件（包括Session Cookie）"""
+    cookies = context.cookies()
+    cookies_file = get_cookies_file(corp_id)
     
-    COOKIE_VALID_HOURS = 20  # 保守估计，实际可能24-48小时
+    # 只保存企微相关的Cookie
+    wecom_cookies = [c for c in cookies if 'weixin' in c.get('domain', '')]
     
-    def __init__(self, corp_id: str, cookie_dir: str = "./cookies"):
-        self.corp_id = corp_id
-        self.cookie_dir = cookie_dir
-        self.cookie_file = os.path.join(cookie_dir, f"wecom_{corp_id}.json")
-        os.makedirs(cookie_dir, exist_ok=True)
+    with open(cookies_file, 'w', encoding='utf-8') as f:
+        json.dump(wecom_cookies, f, indent=2, ensure_ascii=False)
     
-    def save_cookies(self, cookies: List[Dict], admin_name: str = "unknown") -> Dict:
-        """保存Cookie到文件"""
-        data = {
-            "cookies": cookies,
-            "saved_at": datetime.now().isoformat(),
-            "corp_id": self.corp_id,
-            "admin_name": admin_name,
-            "expires_at": (datetime.now() + timedelta(hours=self.COOKIE_VALID_HOURS)).isoformat()
-        }
-        with open(self.cookie_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        return data
+    print(f"已导出 {len(wecom_cookies)} 个Cookie到 {cookies_file}")
+    return wecom_cookies
+
+
+def load_cookies(context: BrowserContext, corp_id: str) -> bool:
+    """从文件加载Cookie到浏览器Context"""
+    cookies_file = get_cookies_file(corp_id)
     
-    def load_cookies(self) -> Optional[Dict]:
-        """加载Cookie，返回完整数据（含元信息）"""
-        if not os.path.exists(self.cookie_file):
-            return None
-        
-        with open(self.cookie_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        
-        return data
+    if not os.path.exists(cookies_file):
+        print(f"Cookie文件不存在: {cookies_file}")
+        return False
     
-    def get_valid_cookies(self) -> Optional[List[Dict]]:
-        """获取有效的Cookie列表，过期返回None"""
-        data = self.load_cookies()
-        if not data:
-            return None
-        
-        saved_at = datetime.fromisoformat(data["saved_at"])
-        if datetime.now() - saved_at > timedelta(hours=self.COOKIE_VALID_HOURS):
-            return None
-        
-        return data["cookies"]
+    with open(cookies_file, 'r', encoding='utf-8') as f:
+        cookies = json.load(f)
     
-    def get_status(self) -> Dict:
-        """获取Cookie状态"""
-        data = self.load_cookies()
-        if not data:
-            return {
-                "valid": False,
-                "message": "未找到Cookie，请先运行Cookie预存程序",
-                "remaining_hours": 0
-            }
-        
-        saved_at = datetime.fromisoformat(data["saved_at"])
-        elapsed = datetime.now() - saved_at
-        remaining = timedelta(hours=self.COOKIE_VALID_HOURS) - elapsed
-        
-        if remaining.total_seconds() <= 0:
-            return {
-                "valid": False,
-                "message": f"Cookie已过期（保存于 {data['saved_at']}），请重新运行预存程序",
-                "remaining_hours": 0,
-                "admin_name": data.get("admin_name", "unknown")
-            }
-        
-        remaining_hours = remaining.total_seconds() / 3600
+    if not cookies:
+        print("Cookie文件为空")
+        return False
+    
+    # 检查关键Cookie是否存在
+    cookie_names = [c['name'] for c in cookies]
+    if 'wwrtx.sid' not in cookie_names or 'wwrtx.vst' not in cookie_names:
+        print("Cookie文件缺少关键会话Cookie (wwrtx.sid/wwrtx.vst)")
+        return False
+    
+    context.add_cookies(cookies)
+    print(f"已加载 {len(cookies)} 个Cookie")
+    return True
+
+
+def save_session_info(corp_id: str, admin_name: str = "unknown"):
+    """保存会话信息（登录时间等元数据，不保存Cookie）"""
+    os.makedirs(BROWSER_DATA_DIR, exist_ok=True)
+    info_file = os.path.join(get_browser_data_dir(corp_id), "session_info.json")
+    os.makedirs(os.path.dirname(info_file), exist_ok=True)
+    
+    data = {
+        "corp_id": corp_id,
+        "admin_name": admin_name,
+        "login_at": datetime.now().isoformat(),
+        "expires_at": (datetime.now() + timedelta(hours=24)).isoformat()
+    }
+    with open(info_file, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    return data
+
+
+def get_session_status(corp_id: str) -> Dict:
+    """检查会话状态"""
+    data_dir = get_browser_data_dir(corp_id)
+    info_file = os.path.join(data_dir, "session_info.json")
+    
+    if not os.path.exists(info_file):
         return {
-            "valid": True,
-            "message": f"Cookie有效，剩余约 {remaining_hours:.1f} 小时",
-            "remaining_hours": remaining_hours,
-            "admin_name": data.get("admin_name", "unknown"),
-            "saved_at": data["saved_at"]
+            "valid": False,
+            "message": "未找到登录会话，请先运行 login 命令",
+            "remaining_hours": 0
         }
+    
+    with open(info_file, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    
+    login_at = datetime.fromisoformat(data["login_at"])
+    elapsed = datetime.now() - login_at
+    remaining = timedelta(hours=24) - elapsed
+    
+    if remaining.total_seconds() <= 0:
+        return {
+            "valid": False,
+            "message": f"会话已过期（登录于 {data['login_at']}），请重新登录",
+            "remaining_hours": 0,
+            "admin_name": data.get("admin_name", "unknown")
+        }
+    
+    remaining_hours = remaining.total_seconds() / 3600
+    return {
+        "valid": True,
+        "message": f"会话有效，剩余约 {remaining_hours:.1f} 小时",
+        "remaining_hours": remaining_hours,
+        "admin_name": data.get("admin_name", "unknown"),
+        "login_at": data["login_at"]
+    }
 
 
-class CookiePreSaver:
+def create_persistent_context(corp_id: str, headless: bool = False, auto_load_cookies: bool = True) -> tuple:
     """
-    Cookie预存工具
-    运维人员使用此工具预先扫码保存Cookie
+    创建持久化浏览器 Context
+    返回 (playwright, context)，调用者需要自己管理生命周期
+    
+    Args:
+        corp_id: 企业ID
+        headless: 是否无头模式
+        auto_load_cookies: 是否自动加载之前保存的Cookie
     """
+    from playwright.sync_api import sync_playwright
     
-    def __init__(self, corp_id: str, cookie_dir: str = "./cookies"):
-        self.corp_id = corp_id
-        self.cookie_mgr = WeComCookieManager(corp_id, cookie_dir)
-        self.admin_url = "https://work.weixin.qq.com"
+    data_dir = get_browser_data_dir(corp_id)
+    os.makedirs(data_dir, exist_ok=True)
     
-    def run_interactive(self):
-        """交互式运行：显示二维码，等待扫码，保存Cookie"""
-        print("=" * 60)
-        print("  企业微信Cookie预存工具")
-        print("=" * 60)
-        print(f"\n企业ID: {self.corp_id}")
-        print(f"Cookie存储: {self.cookie_mgr.cookie_file}")
-        print("\n即将打开浏览器，请使用企业微信App扫描二维码登录...")
-        print("登录成功后Cookie将自动保存\n")
-        
+    p = sync_playwright().start()
+    context = p.chromium.launch_persistent_context(
+        data_dir,
+        headless=headless,
+        viewport={'width': 1280, 'height': 800},
+        args=['--window-size=1280,800'] if not headless else []
+    )
+    
+    # 自动加载之前保存的Cookie（包括Session Cookie）
+    if auto_load_cookies:
+        try:
+            load_cookies(context, corp_id)
+        except Exception as e:
+            print(f"加载Cookie失败: {e}")
+    
+    return p, context
+
+
+def login_interactive(corp_id: str, skip_confirm: bool = False):
+    """
+    交互式登录：打开浏览器扫码登录，登录后保持浏览器运行
+    """
+    print("=" * 60)
+    print("  企业微信登录")
+    print("=" * 60)
+    print(f"\n企业ID: {corp_id}")
+    print(f"浏览器数据目录: {get_browser_data_dir(corp_id)}")
+    print("\n即将打开浏览器，请使用企业微信App扫描二维码登录...")
+    print("登录成功后浏览器将保持运行，按 Ctrl+C 退出\n")
+    
+    if not skip_confirm:
         input("按回车键继续...")
+    
+    p, context = create_persistent_context(corp_id, headless=False)
+    
+    try:
+        page = context.pages[0] if context.pages else context.new_page()
         
-        with sync_playwright() as p:
-            # 启动浏览器（显示界面）
-            browser = p.chromium.launch(
-                headless=False,
-                args=['--window-size=800,600']
-            )
-            context = browser.new_context(
-                viewport={'width': 800, 'height': 600}
-            )
-            page = context.new_page()
-            
-            # 访问登录页
-            login_url = f"{self.admin_url}/wework_admin/loginpage_wx"
-            print(f"\n正在打开: {login_url}")
-            page.goto(login_url)
-            
-            print("\n" + "=" * 60)
+        # 检查是否已经登录
+        page.goto("https://work.weixin.qq.com/wework_admin/frame")
+        page.wait_for_load_state("domcontentloaded")
+        
+        import time
+        time.sleep(2)
+        
+        current_url = page.url
+        if "loginpage" in current_url:
+            print("\n需要扫码登录...")
+            print("=" * 60)
             print("  请使用企业微信App扫描浏览器中的二维码")
             print("=" * 60)
             
-            try:
-                # 等待登录成功（URL变化）
-                page.wait_for_url(
-                    "**/wework_admin/frame**",
-                    timeout=180000  # 3分钟超时
-                )
-                print("\n✅ 登录成功！")
-                
-                # 等待页面完全加载
-                page.wait_for_load_state("networkidle")
-                
-                # 尝试获取管理员名称
-                admin_name = "unknown"
-                try:
-                    name_el = page.query_selector(".ww_userName, .member_name, .user-name")
-                    if name_el:
-                        admin_name = name_el.text_content().strip()
-                except:
-                    pass
-                
-                # 保存Cookie
-                cookies = context.cookies()
-                data = self.cookie_mgr.save_cookies(cookies, admin_name)
-                
-                print("\n" + "=" * 60)
-                print("  Cookie保存成功！")
-                print("=" * 60)
-                print(f"  管理员: {admin_name}")
-                print(f"  保存时间: {data['saved_at']}")
-                print(f"  预计过期: {data['expires_at']}")
-                print(f"  有效期: 约 {self.cookie_mgr.COOKIE_VALID_HOURS} 小时")
-                print(f"  存储文件: {self.cookie_mgr.cookie_file}")
-                print("=" * 60)
-                
-            except Exception as e:
-                print(f"\n❌ 登录超时或失败: {e}")
-            finally:
-                print("\n3秒后关闭浏览器...")
-                page.wait_for_timeout(3000)
-                browser.close()
-    
-    def check_status(self) -> bool:
-        """检查当前Cookie状态"""
-        status = self.cookie_mgr.get_status()
+            # 等待登录成功
+            page.wait_for_url("**/wework_admin/frame**", timeout=180000)
+            print("\n✅ 登录成功！")
+        else:
+            print("\n✅ 已经是登录状态！")
+        
+        # 获取管理员名称
+        admin_name = "unknown"
+        try:
+            name_el = page.query_selector(".ww_userName, .member_name, .user-name")
+            if name_el:
+                admin_name = name_el.text_content().strip()
+        except:
+            pass
+        
+        # 保存会话信息
+        data = save_session_info(corp_id, admin_name)
+        
         print("\n" + "=" * 60)
-        print("  Cookie状态检查")
+        print("  登录成功！浏览器将保持运行")
         print("=" * 60)
-        print(f"  状态: {'✅ 有效' if status['valid'] else '❌ 无效'}")
-        print(f"  信息: {status['message']}")
-        if status.get('admin_name'):
-            print(f"  管理员: {status['admin_name']}")
-        if status.get('saved_at'):
-            print(f"  保存时间: {status['saved_at']}")
+        print(f"  管理员: {admin_name}")
+        print(f"  登录时间: {data['login_at']}")
+        print(f"  建议刷新: 24小时内")
+        print(f"  浏览器数据: {get_browser_data_dir(corp_id)}")
         print("=" * 60)
-        return status['valid']
+        print("\n按 Ctrl+C 退出（浏览器会话将保持）")
+        
+        # 保持运行，等待用户退出
+        while True:
+            time.sleep(60)
+            # 每分钟刷新一下页面保持活跃
+            try:
+                page.reload()
+            except:
+                pass
+                
+    except KeyboardInterrupt:
+        print("\n\n用户退出，正在保存Cookie...")
+        # 关闭前导出Cookie（包括Session Cookie）
+        try:
+            save_cookies(context, corp_id)
+        except Exception as e:
+            print(f"保存Cookie失败: {e}")
+        print("浏览器数据已保存")
+    finally:
+        try:
+            context.close()
+        except Exception:
+            pass  # 忽略关闭时的连接错误
+        try:
+            p.stop()
+        except Exception:
+            pass
+
+
+def check_status(corp_id: str) -> bool:
+    """检查会话状态"""
+    status = get_session_status(corp_id)
+    print("\n" + "=" * 60)
+    print("  会话状态检查")
+    print("=" * 60)
+    print(f"  状态: {'✅ 有效' if status['valid'] else '❌ 无效'}")
+    print(f"  信息: {status['message']}")
+    if status.get('admin_name'):
+        print(f"  管理员: {status['admin_name']}")
+    if status.get('login_at'):
+        print(f"  登录时间: {status['login_at']}")
+    print("=" * 60)
+    return status['valid']
 
 
 # 命令行入口
@@ -193,23 +266,31 @@ if __name__ == "__main__":
     
     if len(sys.argv) < 2:
         print("用法:")
-        print("  python cookie_manager.py save <corp_id>   # 预存Cookie")
-        print("  python cookie_manager.py check <corp_id>  # 检查状态")
+        print("  python cookie_manager.py login <corp_id>  # 登录并保持浏览器运行")
+        print("  python cookie_manager.py check <corp_id>  # 检查会话状态")
         print("")
         print("示例:")
-        print("  python cookie_manager.py save ww1234567890")
+        print("  python cookie_manager.py login ww1234567890")
         print("  python cookie_manager.py check ww1234567890")
+        print("")
+        print("说明:")
+        print("  - 登录后浏览器数据保存在 browser_data/<corp_id>/ 目录")
+        print("  - 后续脚本直接使用该目录启动浏览器，无需重新登录")
+        print("  - 建议每24小时重新登录一次刷新会话")
         sys.exit(1)
     
     action = sys.argv[1]
     corp_id = sys.argv[2] if len(sys.argv) > 2 else "default"
     
-    saver = CookiePreSaver(corp_id)
-    
+    # 兼容旧命令
     if action == "save":
-        saver.run_interactive()
+        action = "login"
+    
+    if action == "login":
+        skip_confirm = "--no-confirm" in sys.argv
+        login_interactive(corp_id, skip_confirm=skip_confirm)
     elif action == "check":
-        saver.check_status()
+        check_status(corp_id)
     else:
         print(f"未知操作: {action}")
         sys.exit(1)

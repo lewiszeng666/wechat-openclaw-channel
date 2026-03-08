@@ -1,0 +1,11 @@
+{
+  "feishu": {
+    "app_id": "cli_a9269ca2fb3a5bc0",
+    "app_secret": "H1EJSHms1VMnWDTbxX8LWc0FOicmMt6k",
+    "open_id": null,
+    "verified_at": "2026-03-08 17:39:38",
+    "skip_verify": true
+  },
+  "openclaw_ip": "101.35.102.240",
+  "ip_obtained_at": "2026-03-08 22:06:22"
+}

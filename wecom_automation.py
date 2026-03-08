@@ -1,6 +1,6 @@
 """
 企业微信后台自动化操作
-使用预存Cookie自动登录，创建应用，配置webhook
+使用持久化浏览器会话自动登录，创建应用，配置webhook
 """
 import json
 import re
@@ -8,7 +8,7 @@ import time
 import secrets
 from typing import Optional, Dict, Tuple
 from playwright.sync_api import sync_playwright, Page
-from cookie_manager import WeComCookieManager
+from cookie_manager import get_session_status, create_persistent_context
 
 
 class WeComAutomation:
@@ -16,7 +16,6 @@ class WeComAutomation:
     
     def __init__(self, corp_id: str, cookie_dir: str = "./cookies"):
         self.corp_id = corp_id
-        self.cookie_mgr = WeComCookieManager(corp_id, cookie_dir)
         self.base_url = "https://work.weixin.qq.com"
     
     def _find_chrome_path(self) -> str:
@@ -82,11 +81,12 @@ class WeComAutomation:
                 "error": str
             }
         """
-        cookies = self.cookie_mgr.get_valid_cookies()
-        if not cookies:
+        # 检查会话状态
+        status = get_session_status(self.corp_id)
+        if not status["valid"]:
             return {
                 "success": False,
-                "error": "Cookie无效或已过期，请运行: python cookie_manager.py save " + self.corp_id
+                "error": f"会话无效: {status['message']}，请运行: python cookie_manager.py login {self.corp_id}"
             }
         
         result = {
@@ -99,74 +99,70 @@ class WeComAutomation:
             "error": ""
         }
         
-        with sync_playwright() as p:
-            # 使用系统安装的 Chrome（Ubuntu 服务器）
-            chrome_path = self._find_chrome_path()
-            launch_args = {'headless': True}
+        # 使用持久化浏览器 Context
+        p, context = create_persistent_context(self.corp_id, headless=True)
+        
+        try:
+            page = context.pages[0] if context.pages else context.new_page()
             
-            if chrome_path:
-                print(f"使用系统 Chrome: {chrome_path}")
-                launch_args['executable_path'] = chrome_path
+            # 1. 访问后台首页验证登录
+            page.goto(f"{self.base_url}/wework_admin/frame")
+            page.wait_for_load_state("networkidle")
             
-            browser = p.chromium.launch(**launch_args)
-            context = browser.new_context()
+            if not self._check_login_status(page):
+                result["error"] = "Cookie失效，请重新运行预存程序"
+                return result
             
-            # 加载Cookie
-            context.add_cookies(cookies)
-            page = context.new_page()
+            print("✅ Cookie登录成功")
             
+            # 2. 创建自建应用
+            app_info = self._create_application(page, app_name, app_description)
+            if not app_info:
+                result["error"] = "创建应用失败"
+                return result
+            
+            result["agent_id"] = app_info["agent_id"]
+            print(f"✅ 应用创建成功, AgentId: {app_info['agent_id']}")
+            
+            # 3. 获取Secret
+            secret = self._get_app_secret(page, app_info["agent_id"])
+            if secret:
+                result["secret"] = secret
+                print("✅ 获取Secret成功")
+            
+            # 4. 配置可信IP
+            self._configure_trusted_ip(page, trusted_ip)
+            print(f"✅ 可信IP配置成功: {trusted_ip}")
+            
+            # 5. 生成Token和AESKey
+            token, aes_key = self._generate_token_and_aes_key()
+            result["token"] = token
+            result["aes_key"] = aes_key
+            
+            # 6. 配置接收消息API
+            self._configure_webhook(page, webhook_url, token, aes_key)
+            print(f"✅ Webhook配置成功: {webhook_url}")
+            
+            # 7. 获取微信插件二维码
+            qrcode_url = self._get_wechat_plugin_qrcode(page)
+            if qrcode_url:
+                result["wechat_qrcode_url"] = qrcode_url
+                print("✅ 微信插件二维码获取成功")
+            
+            result["success"] = True
+            
+        except Exception as e:
+            result["error"] = str(e)
+            print(f"❌ 操作失败: {e}")
+        finally:
             try:
-                # 1. 访问后台首页验证登录
-                page.goto(f"{self.base_url}/wework_admin/frame")
-                page.wait_for_load_state("networkidle")
-                
-                if not self._check_login_status(page):
-                    result["error"] = "Cookie失效，请重新运行预存程序"
-                    return result
-                
-                print("✅ Cookie登录成功")
-                
-                # 2. 创建自建应用
-                app_info = self._create_application(page, app_name, app_description)
-                if not app_info:
-                    result["error"] = "创建应用失败"
-                    return result
-                
-                result["agent_id"] = app_info["agent_id"]
-                print(f"✅ 应用创建成功, AgentId: {app_info['agent_id']}")
-                
-                # 3. 获取Secret
-                secret = self._get_app_secret(page, app_info["agent_id"])
-                if secret:
-                    result["secret"] = secret
-                    print("✅ 获取Secret成功")
-                
-                # 4. 配置可信IP
-                self._configure_trusted_ip(page, trusted_ip)
-                print(f"✅ 可信IP配置成功: {trusted_ip}")
-                
-                # 5. 生成Token和AESKey
-                token, aes_key = self._generate_token_and_aes_key()
-                result["token"] = token
-                result["aes_key"] = aes_key
-                
-                # 6. 配置接收消息API
-                self._configure_webhook(page, webhook_url, token, aes_key)
-                print(f"✅ Webhook配置成功: {webhook_url}")
-                
-                # 7. 获取微信插件二维码
-                qrcode_url = self._get_wechat_plugin_qrcode(page)
-                if qrcode_url:
-                    result["wechat_qrcode_url"] = qrcode_url
-                    print("✅ 微信插件二维码获取成功")
-                
-                result["success"] = True
-                
-            except Exception as e:
-                result["error"] = str(e)
-                print(f"❌ 操作失败: {e}")
-            finally:
-                browser.close()
+                context.close()
+            except Exception:
+                pass
+            try:
+                p.stop()
+            except Exception:
+                pass
         
         return result
     

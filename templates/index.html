@@ -14,7 +14,7 @@
             padding: 20px;
         }
         .container {
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
         }
         .card {
@@ -33,74 +33,281 @@
             color: #666;
             margin-bottom: 20px;
         }
-        .status-card {
-            display: flex;
-            align-items: center;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
+        
+        /* 双二维码并排布局 */
+        .qrcode-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
         }
-        .status-card.success { background: #d4edda; }
-        .status-card.warning { background: #fff3cd; }
-        .status-card.error { background: #f8d7da; }
-        .status-icon {
-            font-size: 24px;
-            margin-right: 15px;
+        @media (max-width: 768px) {
+            .qrcode-grid {
+                grid-template-columns: 1fr;
+            }
         }
-        .step {
-            display: flex;
-            align-items: flex-start;
-            padding: 20px;
+        .qrcode-box {
+            text-align: center;
+            padding: 25px;
+            border-radius: 16px;
             border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            margin-bottom: 15px;
             transition: all 0.3s;
         }
-        .step.active {
-            border-color: #667eea;
-            background: #f8f9ff;
-        }
-        .step.completed {
+        .qrcode-box.success {
             border-color: #28a745;
-            background: #f0fff4;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
         }
-        .step-number {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #e0e0e0;
-            color: #666;
+        .qrcode-box.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #f0f4ff 0%, #e8ecff 100%);
+        }
+        .qrcode-box h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 18px;
+        }
+        .qrcode-container {
+            min-height: 220px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
-            margin-right: 15px;
-            flex-shrink: 0;
+            flex-direction: column;
         }
-        .step.active .step-number {
-            background: #667eea;
-            color: white;
+        .qrcode-container img {
+            max-width: 200px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
-        .step.completed .step-number {
-            background: #28a745;
-            color: white;
-        }
-        .step-content { flex: 1; }
-        .step-title {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 5px;
-        }
-        .step-desc {
+        .qrcode-tip {
+            margin-top: 15px;
             color: #666;
             font-size: 14px;
         }
+        .qrcode-status {
+            margin-top: 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            display: inline-block;
+        }
+        .qrcode-status.pending { background: #fff3cd; color: #856404; }
+        .qrcode-status.success { background: #d4edda; color: #155724; }
+        .qrcode-status.error { background: #f8d7da; color: #721c24; }
+        
+        /* 聊天窗样式 */
+        .chat-box {
+            padding: 15px !important;
+        }
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 220px;
+            background: #f5f5f5;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            position: relative;
+        }
+        .chat-placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #999;
+        }
+        .chat-placeholder p {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .chat-message {
+            margin-bottom: 8px;
+            display: flex;
+        }
+        .chat-message.bot { justify-content: flex-start; }
+        .chat-message.user { justify-content: flex-end; }
+        .chat-bubble {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+        .chat-message.bot .chat-bubble {
+            background: white;
+            color: #333;
+        }
+        .chat-message.user .chat-bubble {
+            background: #667eea;
+            color: white;
+        }
+        .chat-input-area {
+            padding: 10px;
+            background: white;
+            border-top: 1px solid #eee;
+        }
+        .quick-commands {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .quick-cmd {
+            padding: 4px 8px;
+            background: #f0f4ff;
+            border: 1px solid #667eea;
+            border-radius: 10px;
+            font-size: 11px;
+            color: #667eea;
+            cursor: pointer;
+        }
+        .quick-cmd:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+        }
+        .quick-cmd:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .chat-input-wrapper {
+            display: flex;
+            gap: 8px;
+        }
+        .chat-input-wrapper input {
+            flex: 1;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            outline: none;
+        }
+        .chat-input-wrapper input:focus {
+            border-color: #667eea;
+        }
+        .chat-input-wrapper input:disabled {
+            background: #f5f5f5;
+        }
+        .chat-input-wrapper button {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            background: #667eea;
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .chat-input-wrapper button:hover:not(:disabled) {
+            background: #5a6fd6;
+        }
+        .chat-input-wrapper button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        /* 进度展示 */
+        .progress-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+        .progress-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .progress-steps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .progress-step {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            background: #e9ecef;
+            color: #495057;
+        }
+        .progress-step.active {
+            background: #667eea;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+        .progress-step.completed {
+            background: #28a745;
+            color: white;
+        }
+        .progress-step.error {
+            background: #dc3545;
+            color: white;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* 终端日志 */
+        .terminal {
+            background: #1e1e1e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+        }
+        .terminal-line {
+            color: #d4d4d4;
+            margin-bottom: 5px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .terminal-line.success { color: #4ec9b0; }
+        .terminal-line.error { color: #f14c4c; }
+        .terminal-line.info { color: #569cd6; }
+        .terminal-line.warn { color: #ce9178; }
+        
+        /* 配置结果 */
+        .config-result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #e8f5e9;
+            border-radius: 12px;
+            border: 2px solid #28a745;
+        }
+        .config-result h4 {
+            color: #155724;
+            margin-bottom: 15px;
+        }
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #c3e6cb;
+        }
+        .config-item:last-child { border-bottom: none; }
+        .config-label { color: #155724; }
+        .config-value { 
+            font-family: monospace;
+            color: #155724;
+            word-break: break-all;
+            text-align: right;
+            max-width: 60%;
+        }
+        
+        /* 按钮 */
         .btn {
             display: inline-block;
-            padding: 12px 24px;
+            padding: 10px 20px;
             border: none;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: 14px;
             cursor: pointer;
             transition: all 0.3s;
             text-decoration: none;
@@ -109,193 +316,241 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
         }
         .btn-primary:disabled {
             opacity: 0.6;
             cursor: not-allowed;
-            transform: none;
         }
-        .qrcode-container {
-            text-align: center;
-            padding: 20px;
+        .btn-success {
+            background: #28a745;
+            color: white;
         }
-        #feishu-qrcode {
-            margin: 20px auto;
-            padding: 15px;
-            background: white;
-            border-radius: 10px;
-            display: inline-block;
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
         }
-        .qrcode-tip {
-            color: #666;
-            font-size: 14px;
-            margin-top: 10px;
-        }
-        .result-box {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        .result-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #e0e0e0;
-        }
-        .result-item:last-child { border-bottom: none; }
-        .result-label { color: #666; }
-        .result-value { 
-            font-family: monospace;
-            color: #333;
-            word-break: break-all;
-        }
+        
         .loading {
             display: inline-block;
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             border: 2px solid #f3f3f3;
             border-top: 2px solid #667eea;
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin-right: 10px;
+            margin-right: 8px;
+            vertical-align: middle;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
         .hidden { display: none !important; }
-        .wechat-qrcode {
+        
+        /* 最终二维码 */
+        .final-qrcode {
             text-align: center;
             padding: 30px;
-            background: #f0fff4;
-            border-radius: 10px;
-            margin-top: 20px;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border-radius: 16px;
+            border: 3px solid #28a745;
         }
-        .wechat-qrcode img {
-            max-width: 200px;
-            border-radius: 10px;
+        .final-qrcode h3 {
+            color: #155724;
+            margin-bottom: 20px;
+        }
+        .final-qrcode img {
+            max-width: 250px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- 标题卡片 -->
         <div class="card">
-            <h1>🚀 OpenClaw 企微接入控制台</h1>
-            <p class="subtitle">自动化配置企业微信，一键接入 OpenClaw</p>
+            <h1>🦐 OpenClaw 企微接入控制台</h1>
+            <p class="subtitle">一键自动化配置企业微信，接入 OpenClaw AI 助手</p>
+        </div>
+
+        <!-- 第一步：双二维码扫码 -->
+        <div class="card" id="step1-card">
+            <h2 style="margin-bottom: 20px;">📱 第一步：扫码准备</h2>
             
-            <!-- Cookie 状态 -->
-            <div class="status-card {{ 'success' if cookie_status.valid else 'warning' }}">
-                <span class="status-icon">{{ '✅' if cookie_status.valid else '⚠️' }}</span>
-                <div>
-                    <strong>企微Cookie状态</strong>
-                    <p>{{ cookie_status.message }}</p>
-                    {% if corp_id %}
-                    <p style="font-size: 12px; color: #666;">企业ID: {{ corp_id }}</p>
-                    {% endif %}
+            <div class="qrcode-grid">
+                <!-- 飞书二维码 -->
+                <div class="qrcode-box" id="feishu-box">
+                    <h3>🐦 飞书扫码登录</h3>
+                    <div class="qrcode-container" id="feishu-qrcode-container">
+                        <div id="feishu-loading">
+                            <span class="loading"></span>
+                            <span style="color: #666;">正在获取二维码...</span>
+                        </div>
+                        <div id="feishu-qrcode" style="display: none;"></div>
+                    </div>
+                    <p class="qrcode-tip">使用<strong>飞书 App</strong>扫描</p>
+                    <div id="feishu-status" class="qrcode-status pending">等待扫码</div>
+                </div>
+                
+                <!-- 飞书机器人聊天窗 -->
+                <div class="qrcode-box chat-box" id="chat-box">
+                    <h3>🦐 OpenClaw 机器人</h3>
+                    <div class="chat-container">
+                        <div class="chat-messages" id="chat-messages">
+                            <div class="chat-placeholder" id="chat-placeholder">
+                                <span style="font-size: 40px;">🔐</span>
+                                <p>请先扫码登录飞书</p>
+                            </div>
+                        </div>
+                        <div class="chat-input-area">
+                            <div class="quick-commands" id="quick-commands">
+                                <button class="quick-cmd" onclick="sendQuickCmd('执行 curl ifconfig.me')" disabled>获取IP</button>
+                                <button class="quick-cmd" onclick="sendQuickCmd('执行 ls -la')" disabled>列目录</button>
+                                <button class="quick-cmd" onclick="sendQuickCmd('执行 whoami')" disabled>用户</button>
+                            </div>
+                            <div class="chat-input-wrapper">
+                                <input type="text" id="chat-input" placeholder="请先扫码登录..." disabled>
+                                <button id="send-btn" onclick="sendChatMessage()" disabled>发送</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="chat-status" class="qrcode-status pending">等待登录</div>
+                </div>
+            </div>
+            
+            <!-- 飞书验证进度 -->
+            <div class="progress-section" id="feishu-progress" style="display: none;">
+                <div class="progress-title">🔄 飞书通道验证进度</div>
+                <div class="progress-steps" id="feishu-steps">
+                    <div class="progress-step" id="step-scan">扫码登录</div>
+                    <div class="progress-step" id="step-verify">验证通道</div>
+                    <div class="progress-step" id="step-ip">获取公网IP</div>
+                </div>
+                <div class="terminal" id="feishu-terminal" style="display: none;">
+                    <div id="feishu-logs"></div>
                 </div>
             </div>
         </div>
 
-        <!-- 步骤1: 飞书扫码 -->
-        <div class="card">
-            <div class="step active" id="step1">
-                <div class="step-number">1</div>
-                <div class="step-content">
-                    <div class="step-title">飞书扫码登录</div>
-                    <div class="step-desc">使用飞书 App 扫描二维码，自动创建飞书机器人并配置 OpenClaw</div>
-                    
-                    <div id="feishu-init" style="margin-top: 15px;">
-                        <button class="btn btn-primary" onclick="initFeishu()">
-                            获取飞书二维码
-                        </button>
+        <!-- 第二步：新成员检测与应用创建 -->
+        <div class="card hidden" id="step2-card">
+            <h2 style="margin-bottom: 20px;">⚙️ 第二步：等待新成员加入</h2>
+            <p style="color: #666; margin-bottom: 15px;">当有新成员通过微信扫码加入企业后，系统将自动为其创建专属应用</p>
+            
+            <div id="member-waiting" style="text-align: center; padding: 30px;">
+                <span class="loading" style="width: 40px; height: 40px; border-width: 3px;"></span>
+                <p style="margin-top: 15px; color: #667eea;">等待新成员加入...</p>
+            </div>
+            
+            <div id="member-detected" style="display: none;">
+                <div style="padding: 20px; background: #fff3cd; border-radius: 10px; margin-bottom: 15px;">
+                    <strong>🎉 检测到新成员：</strong><span id="new-member-name"></span>
+                </div>
+                
+                <div class="progress-section">
+                    <div class="progress-title">🔄 应用创建进度</div>
+                    <div class="progress-steps" id="app-create-steps">
+                        <div class="progress-step" id="step-create-app">创建应用</div>
+                        <div class="progress-step" id="step-config-api">配置API接收</div>
+                        <div class="progress-step" id="step-install-plugin">安装插件</div>
+                        <div class="progress-step" id="step-save-config">保存配置</div>
                     </div>
-                    
-                    <div id="feishu-qrcode-section" class="qrcode-container hidden">
-                        <div id="feishu-qrcode"></div>
-                        <p class="qrcode-tip">请使用飞书 App 扫描上方二维码</p>
-                        <p id="feishu-status" style="color: #667eea; margin-top: 10px;">等待扫码...</p>
+                    <div class="terminal" id="app-terminal">
+                        <div id="app-logs"></div>
                     </div>
-                    
-                    <div id="feishu-result" class="result-box hidden">
-                        <h4 style="margin-bottom: 15px;">✅ 飞书机器人创建成功</h4>
-                        <div class="result-item">
-                            <span class="result-label">机器人名称</span>
-                            <span class="result-value" id="bot-name">-</span>
-                        </div>
-                        <div class="result-item">
-                            <span class="result-label">App ID</span>
-                            <span class="result-value" id="feishu-app-id">-</span>
-                        </div>
-                    </div>
+                </div>
+            </div>
+            
+            <!-- 配置结果 -->
+            <div class="config-result hidden" id="app-config-result">
+                <h4>✅ 应用配置完成</h4>
+                <div class="config-item">
+                    <span class="config-label">CORP_ID</span>
+                    <span class="config-value" id="result-corp-id">-</span>
+                </div>
+                <div class="config-item">
+                    <span class="config-label">AgentId</span>
+                    <span class="config-value" id="result-agent-id">-</span>
+                </div>
+                <div class="config-item">
+                    <span class="config-label">Secret</span>
+                    <span class="config-value" id="result-secret">-</span>
+                </div>
+                <div class="config-item">
+                    <span class="config-label">Token</span>
+                    <span class="config-value" id="result-token">-</span>
+                </div>
+                <div class="config-item">
+                    <span class="config-label">EncodingAESKey</span>
+                    <span class="config-value" id="result-aes-key">-</span>
+                </div>
+                <div class="config-item">
+                    <span class="config-label">Callback URL</span>
+                    <span class="config-value" id="result-callback-url">-</span>
                 </div>
             </div>
         </div>
 
-        <!-- 步骤2: 企微配置 -->
-        <div class="card">
-            <div class="step" id="step2">
-                <div class="step-number">2</div>
-                <div class="step-content">
-                    <div class="step-title">配置企业微信</div>
-                    <div class="step-desc">自动创建企微应用、配置 Webhook 和可信 IP</div>
-                    
-                    <div id="wecom-start" style="margin-top: 15px;">
-                        <input type="text" id="app-name" placeholder="应用名称（默认：OpenClaw AI助手）" 
-                               style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; width: 250px; margin-right: 10px;">
-                        <button class="btn btn-primary" onclick="startWecomSetup()" id="btn-wecom" disabled>
-                            开始配置企微
-                        </button>
-                    </div>
-                    
-                    <div id="wecom-progress" class="hidden" style="margin-top: 15px;">
-                        <p><span class="loading"></span><span id="wecom-status">正在配置...</span></p>
-                    </div>
-                    
-                    <div id="wecom-result" class="result-box hidden">
-                        <h4 style="margin-bottom: 15px;">✅ 企微配置完成</h4>
-                        <div class="result-item">
-                            <span class="result-label">Agent ID</span>
-                            <span class="result-value" id="agent-id">-</span>
-                        </div>
-                        <div class="result-item">
-                            <span class="result-label">Webhook URL</span>
-                            <span class="result-value" id="webhook-url">-</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 步骤3: 微信二维码 -->
+        <!-- 第三步：最终二维码 -->
         <div class="card hidden" id="step3-card">
-            <div class="step completed" id="step3">
-                <div class="step-number">3</div>
-                <div class="step-content">
-                    <div class="step-title">扫码关注微信</div>
-                    <div class="step-desc">扫描下方二维码，关注企业微信公众号</div>
-                    
-                    <div class="wechat-qrcode">
-                        <img id="wechat-qrcode-img" src="" alt="微信二维码">
-                        <p style="margin-top: 15px; color: #28a745;">使用微信扫描上方二维码即可完成接入</p>
-                    </div>
-                </div>
+            <h2 style="margin-bottom: 20px;">🎉 第三步：完成接入</h2>
+            <div class="final-qrcode">
+                <h3>🦐 扫码使用 OpenClaw AI 助手</h3>
+                <img id="final-qrcode-img" src="" alt="微信插件二维码">
+                <p style="margin-top: 20px; color: #155724;">使用<strong>微信</strong>扫描上方二维码，关注企业微信应用即可开始使用</p>
             </div>
         </div>
     </div>
 
     <script>
+        // 全局状态
         let feishuSessionId = null;
         let pollTimer = null;
+        let memberPollTimer = null;
+        let feishuCredentials = null;  // {app_id, app_secret, open_id}
+        let openclawHost = null;
         
-        // 初始化飞书扫码
-        async function initFeishu() {
-            const btn = document.querySelector('#feishu-init button');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="loading"></span>获取中...';
+        // ============================================================
+        // 日志工具
+        // ============================================================
+        function addLog(containerId, message, type = '') {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const line = document.createElement('div');
+            line.className = 'terminal-line' + (type ? ' ' + type : '');
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            container.appendChild(line);
+            container.parentElement.scrollTop = container.parentElement.scrollHeight;
+        }
+        
+        function setStepStatus(stepId, status) {
+            const step = document.getElementById(stepId);
+            if (!step) return;
+            step.classList.remove('active', 'completed', 'error');
+            if (status) step.classList.add(status);
+        }
+        
+        // ============================================================
+        // 页面初始化：同时加载两个二维码
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 加载飞书二维码
+            await initFeishuQrcode();
+        });
+        
+        // ============================================================
+        // 功能1：飞书扫码 + 通道验证 + 获取公网IP
+        // ============================================================
+        async function initFeishuQrcode() {
+            const loading = document.getElementById('feishu-loading');
+            const qrcodeDiv = document.getElementById('feishu-qrcode');
+            const statusDiv = document.getElementById('feishu-status');
             
             try {
                 const resp = await fetch('/api/feishu/init', { method: 'POST' });
@@ -305,39 +560,37 @@
                     feishuSessionId = data.session_id;
                     
                     // 显示二维码
-                    document.getElementById('feishu-init').classList.add('hidden');
-                    document.getElementById('feishu-qrcode-section').classList.remove('hidden');
+                    loading.style.display = 'none';
+                    qrcodeDiv.style.display = 'block';
+                    qrcodeDiv.innerHTML = '';
                     
-                    // 生成二维码
-                    const qrContainer = document.getElementById('feishu-qrcode');
-                    qrContainer.innerHTML = '';
                     try {
-                        new QRCode(qrContainer, {
+                        new QRCode(qrcodeDiv, {
                             text: data.qr_content,
-                            width: 200,
-                            height: 200,
+                            width: 180,
+                            height: 180,
                             correctLevel: QRCode.CorrectLevel.M
                         });
                     } catch (qrError) {
-                        qrContainer.innerHTML = '<p style="color: red;">二维码生成失败</p>';
+                        qrcodeDiv.innerHTML = '<p style="color: red;">二维码生成失败</p>';
                     }
                     
+                    statusDiv.textContent = '等待扫码';
+                    statusDiv.className = 'qrcode-status pending';
+                    
                     // 开始轮询
-                    startPolling();
+                    startFeishuPolling();
                 } else {
-                    alert('获取二维码失败: ' + data.error);
-                    btn.disabled = false;
-                    btn.innerHTML = '获取飞书二维码';
+                    loading.innerHTML = '<p style="color: red;">获取失败: ' + (data.error || '未知错误') + '</p>';
+                    statusDiv.textContent = '获取失败';
+                    statusDiv.className = 'qrcode-status error';
                 }
             } catch (e) {
-                alert('请求失败: ' + e.message);
-                btn.disabled = false;
-                btn.innerHTML = '获取飞书二维码';
+                loading.innerHTML = '<p style="color: red;">网络错误: ' + e.message + '</p>';
             }
         }
         
-        // 轮询扫码状态
-        function startPolling() {
+        function startFeishuPolling() {
             pollTimer = setInterval(async () => {
                 try {
                     const resp = await fetch('/api/feishu/poll', {
@@ -346,37 +599,39 @@
                         body: JSON.stringify({ session_id: feishuSessionId })
                     });
                     const data = await resp.json();
-                    
-                    const statusEl = document.getElementById('feishu-status');
+                    const statusDiv = document.getElementById('feishu-status');
+                    const feishuBox = document.getElementById('feishu-box');
                     
                     if (data.status === 'completed') {
                         clearInterval(pollTimer);
-                        statusEl.textContent = '✅ 扫码成功！';
+                        statusDiv.textContent = '✅ 扫码成功';
+                        statusDiv.className = 'qrcode-status success';
+                        feishuBox.classList.add('success');
                         
-                        // 显示结果
-                        document.getElementById('feishu-qrcode-section').classList.add('hidden');
-                        document.getElementById('feishu-result').classList.remove('hidden');
-                        document.getElementById('bot-name').textContent = data.bot_name || '-';
-                        document.getElementById('feishu-app-id').textContent = data.app_id || '-';
+                        // 保存凭证
+                        feishuCredentials = {
+                            app_id: data.app_id,
+                            app_secret: data.app_secret,
+                            open_id: data.open_id,
+                            bot_name: data.bot_name
+                        };
                         
-                        // 更新步骤状态
-                        document.getElementById('step1').classList.remove('active');
-                        document.getElementById('step1').classList.add('completed');
-                        document.getElementById('step2').classList.add('active');
-                        document.getElementById('btn-wecom').disabled = false;
+                        // 激活聊天窗
+                        activateChat();
+                        
+                        // 开始验证通道并获取公网IP
+                        await verifyChannelAndGetIP();
                         
                     } else if (data.status === 'scanned') {
-                        statusEl.textContent = '📱 已扫码，请在手机上确认...';
+                        statusDiv.textContent = '📱 已扫码，请确认';
+                        statusDiv.className = 'qrcode-status pending';
+                        
                     } else if (data.status === 'expired') {
                         clearInterval(pollTimer);
-                        statusEl.textContent = '⚠️ 二维码已过期';
-                        document.getElementById('feishu-init').classList.remove('hidden');
-                        document.getElementById('feishu-qrcode-section').classList.add('hidden');
-                        const btn = document.querySelector('#feishu-init button');
-                        btn.disabled = false;
-                        btn.innerHTML = '重新获取二维码';
-                    } else if (data.status === 'error') {
-                        statusEl.textContent = '❌ ' + data.message;
+                        statusDiv.textContent = '⚠️ 已过期，正在刷新...';
+                        statusDiv.className = 'qrcode-status error';
+                        // 自动重新获取二维码
+                        setTimeout(() => initFeishuQrcode(), 1000);
                     }
                 } catch (e) {
                     console.error('Poll error:', e);
@@ -384,75 +639,394 @@
             }, 2000);
         }
         
-        // 开始企微配置
-        async function startWecomSetup() {
-            const btn = document.getElementById('btn-wecom');
-            btn.disabled = true;
+        async function verifyChannelAndGetIP() {
+            // 显示进度区域
+            const progressSection = document.getElementById('feishu-progress');
+            const terminal = document.getElementById('feishu-terminal');
+            progressSection.style.display = 'block';
+            terminal.style.display = 'block';
             
-            document.getElementById('wecom-progress').classList.remove('hidden');
+            // 步骤1: 扫码完成
+            setStepStatus('step-scan', 'completed');
+            addLog('feishu-logs', '扫码登录成功', 'success');
+            addLog('feishu-logs', `机器人: ${feishuCredentials.bot_name}`, 'info');
+            addLog('feishu-logs', `App ID: ${feishuCredentials.app_id}`, 'info');
             
-            const appName = document.getElementById('app-name').value || 'OpenClaw AI助手';
+            // 步骤2: 验证通道
+            setStepStatus('step-verify', 'active');
+            addLog('feishu-logs', '正在验证飞书↔OpenClaw通道...');
             
             try {
-                const resp = await fetch('/api/start-wecom-setup', {
+                const verifyResp = await fetch('/api/feishu/verify', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ app_name: appName })
+                    body: JSON.stringify({
+                        app_id: feishuCredentials.app_id,
+                        app_secret: feishuCredentials.app_secret,
+                        open_id: feishuCredentials.open_id
+                    })
                 });
-                const data = await resp.json();
+                const verifyData = await verifyResp.json();
                 
-                if (data.task_id) {
-                    checkWecomTask(data.task_id);
+                if (verifyData.available) {
+                    setStepStatus('step-verify', 'completed');
+                    if (verifyData.skipped) {
+                        addLog('feishu-logs', '✓ 凭证已保存（跳过通道验证）', 'success');
+                    } else {
+                        addLog('feishu-logs', '✓ 通道验证成功', 'success');
+                    }
+                    
+                    // 如果没有 open_id，跳过获取IP步骤，直接进入第二步
+                    if (!feishuCredentials.open_id) {
+                        setStepStatus('step-ip', 'completed');
+                        addLog('feishu-logs', '✓ 跳过获取IP（无需此步骤）', 'info');
+                        addLog('feishu-logs', '飞书凭证配置完成，继续下一步...', 'success');
+                        
+                        // 直接进入第二步
+                        setTimeout(() => {
+                            document.getElementById('step2-card').classList.remove('hidden');
+                            startMemberPolling();
+                        }, 1000);
+                        return;
+                    }
+                    
+                    // 步骤3: 获取公网IP（仅当有 open_id 时）
+                    setStepStatus('step-ip', 'active');
+                    addLog('feishu-logs', '正在获取 OpenClaw 服务器公网IP...');
+                    
+                    const ipResp = await fetch('/api/openclaw/get-ip', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            app_id: feishuCredentials.app_id,
+                            app_secret: feishuCredentials.app_secret,
+                            open_id: feishuCredentials.open_id
+                        })
+                    });
+                    const ipData = await ipResp.json();
+                    
+                    if (ipData.success && ipData.ip) {
+                        openclawHost = ipData.ip;
+                        setStepStatus('step-ip', 'completed');
+                        addLog('feishu-logs', `✓ 获取公网IP成功: ${openclawHost}`, 'success');
+                        addLog('feishu-logs', `回调URL: http://${openclawHost}:3000/wecom`, 'info');
+                        
+                        // 第一步全部完成，进入第二步
+                        setTimeout(() => {
+                            document.getElementById('step2-card').classList.remove('hidden');
+                            startMemberPolling();
+                        }, 1000);
+                        
+                    } else {
+                        setStepStatus('step-ip', 'error');
+                        addLog('feishu-logs', `✗ 获取公网IP失败: ${ipData.error || '未知错误'}`, 'error');
+                        addLog('feishu-logs', '提示: 请确保 OpenClaw 已正确配置飞书通道', 'warn');
+                    }
+                    
                 } else {
-                    document.getElementById('wecom-status').textContent = '❌ ' + (data.error || '启动失败');
+                    setStepStatus('step-verify', 'error');
+                    addLog('feishu-logs', `✗ 通道验证失败: ${verifyData.message}`, 'error');
                 }
             } catch (e) {
-                document.getElementById('wecom-status').textContent = '❌ ' + e.message;
+                setStepStatus('step-verify', 'error');
+                addLog('feishu-logs', `✗ 验证异常: ${e.message}`, 'error');
             }
         }
         
-        // 检查企微配置任务状态
-        async function checkWecomTask(taskId) {
-            const statusEl = document.getElementById('wecom-status');
+        // ============================================================
+        // 功能2：飞书机器人聊天
+        // ============================================================
+        function activateChat() {
+            const chatBox = document.getElementById('chat-box');
+            const chatStatus = document.getElementById('chat-status');
+            const chatInput = document.getElementById('chat-input');
+            const sendBtn = document.getElementById('send-btn');
+            const placeholder = document.getElementById('chat-placeholder');
             
-            const timer = setInterval(async () => {
+            // 激活聊天
+            chatBox.classList.add('success');
+            chatStatus.textContent = '✅ 已连接';
+            chatStatus.className = 'qrcode-status success';
+            chatInput.disabled = false;
+            chatInput.placeholder = '输入命令发送给 OpenClaw...';
+            sendBtn.disabled = false;
+            document.querySelectorAll('.quick-cmd').forEach(btn => btn.disabled = false);
+            
+            // 隐藏占位符
+            placeholder.style.display = 'none';
+            
+            // 发送欢迎消息
+            addChatMessage('bot', '你好！我是 OpenClaw 机器人，已成功连接。');
+        }
+        
+        function addChatMessage(type, text) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = 'chat-message ' + type;
+            div.innerHTML = '<div class="chat-bubble">' + text.replace(/\n/g, '<br>') + '</div>';
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            addChatMessage('user', text);
+            input.value = '';
+            
+            const btn = document.getElementById('send-btn');
+            btn.disabled = true;
+            btn.textContent = '...';
+            
+            try {
+                // 调用飞书发送消息接口
+                const resp = await fetch('/api/feishu/send-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        app_id: feishuCredentials.app_id,
+                        app_secret: feishuCredentials.app_secret,
+                        open_id: feishuCredentials.open_id,
+                        message: text
+                    })
+                });
+                const data = await resp.json();
+                
+                if (data.success) {
+                    addChatMessage('bot', '命令已发送，请在飞书中查看回复。');
+                } else {
+                    addChatMessage('bot', '发送失败: ' + (data.error || '请重试'));
+                }
+            } catch (e) {
+                addChatMessage('bot', '发送失败: ' + e.message);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = '发送';
+        }
+        
+        function sendQuickCmd(cmd) {
+            document.getElementById('chat-input').value = cmd;
+            sendChatMessage();
+        }
+        
+        // 回车发送
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('chat-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.target.disabled) sendChatMessage();
+            });
+        });
+        
+        // ============================================================
+        // 功能3-6：新成员检测与应用创建
+        // ============================================================
+        function startMemberPolling() {
+            addLog('app-logs', '开始监听新成员加入...');
+            
+            memberPollTimer = setInterval(async () => {
                 try {
-                    const resp = await fetch('/api/task/' + taskId);
+                    const resp = await fetch('/api/new-member/poll');
                     const data = await resp.json();
                     
-                    if (data.status === 'completed') {
-                        clearInterval(timer);
-                        statusEl.textContent = '✅ 配置完成';
-                        
-                        document.getElementById('wecom-progress').classList.add('hidden');
-                        document.getElementById('wecom-result').classList.remove('hidden');
-                        document.getElementById('agent-id').textContent = data.result.agent_id || '-';
-                        document.getElementById('webhook-url').textContent = data.result.webhook_url || '-';
-                        
-                        // 更新步骤状态
-                        document.getElementById('step2').classList.remove('active');
-                        document.getElementById('step2').classList.add('completed');
-                        
-                        // 显示微信二维码
-                        if (data.result.wechat_qrcode_url) {
-                            document.getElementById('step3-card').classList.remove('hidden');
-                            document.getElementById('wechat-qrcode-img').src = data.result.wechat_qrcode_url;
-                        }
-                        
-                    } else if (data.status === 'failed') {
-                        clearInterval(timer);
-                        statusEl.textContent = '❌ ' + data.error;
-                    } else {
-                        // 显示当前步骤
-                        const currentStep = data.steps.find(s => s.status === 'running');
-                        if (currentStep) {
-                            statusEl.textContent = currentStep.name + '...';
-                        }
+                    if (data.new_member) {
+                        clearInterval(memberPollTimer);
+                        onNewMemberDetected(data.new_member);
                     }
                 } catch (e) {
-                    console.error('Check task error:', e);
+                    console.error('Member poll error:', e);
                 }
-            }, 1500);
+            }, 3000);
+        }
+        
+        async function onNewMemberDetected(member) {
+            document.getElementById('member-waiting').style.display = 'none';
+            document.getElementById('member-detected').style.display = 'block';
+            document.getElementById('new-member-name').textContent = member.name;
+            
+            addLog('app-logs', `🎉 检测到新成员: ${member.name}`, 'success');
+            addLog('app-logs', `User ID: ${member.user_id}`, 'info');
+            
+            // 开始创建应用流程
+            await createAppForMember(member);
+        }
+        
+        async function createAppForMember(member) {
+            // 步骤1: 创建应用
+            setStepStatus('step-create-app', 'active');
+            addLog('app-logs', '正在创建企业微信应用...');
+            
+            try {
+                const createResp = await fetch('/api/new-member/create-app', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        member_name: member.name,
+                        member_user_id: member.user_id,
+                        openclaw_host: openclawHost
+                    })
+                });
+                const createData = await createResp.json();
+                
+                if (createData.task_id) {
+                    // 轮询任务状态
+                    await pollAppCreationTask(createData.task_id, member);
+                } else {
+                    setStepStatus('step-create-app', 'error');
+                    addLog('app-logs', `✗ 创建任务启动失败: ${createData.error}`, 'error');
+                }
+            } catch (e) {
+                setStepStatus('step-create-app', 'error');
+                addLog('app-logs', `✗ 创建应用异常: ${e.message}`, 'error');
+            }
+        }
+        
+        async function pollAppCreationTask(taskId, member) {
+            const checkTask = async () => {
+                const resp = await fetch(`/api/new-member/task/${taskId}`);
+                const data = await resp.json();
+                
+                if (data.status === 'completed') {
+                    // 应用创建完成
+                    setStepStatus('step-create-app', 'completed');
+                    setStepStatus('step-config-api', 'completed');
+                    addLog('app-logs', '✓ 应用创建成功', 'success');
+                    
+                    // 显示配置结果
+                    displayConfig(data.config);
+                    
+                    // 继续安装插件
+                    await installWecomPlugin(data.config, member);
+                    
+                } else if (data.status === 'running') {
+                    const step = data.current_step || '处理中';
+                    addLog('app-logs', `[进行中] ${step}...`);
+                    setTimeout(checkTask, 2000);
+                    
+                } else if (data.status === 'failed') {
+                    setStepStatus('step-create-app', 'error');
+                    addLog('app-logs', `✗ 创建失败: ${data.error}`, 'error');
+                    
+                } else {
+                    setTimeout(checkTask, 2000);
+                }
+            };
+            
+            await checkTask();
+        }
+        
+        function displayConfig(config) {
+            document.getElementById('result-corp-id').textContent = config.corp_id || '-';
+            document.getElementById('result-agent-id').textContent = config.agent_id || '-';
+            document.getElementById('result-secret').textContent = config.secret ? config.secret.substring(0, 20) + '...' : '-';
+            document.getElementById('result-token').textContent = config.token || '-';
+            document.getElementById('result-aes-key').textContent = config.aes_key || '-';
+            document.getElementById('result-callback-url').textContent = config.callback_url || '-';
+            document.getElementById('app-config-result').classList.remove('hidden');
+        }
+        
+        async function installWecomPlugin(config, member) {
+            setStepStatus('step-install-plugin', 'active');
+            addLog('app-logs', '正在通过飞书通道安装 wecom-app 插件...');
+            
+            try {
+                const resp = await fetch('/api/openclaw/install-wecom-plugin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        app_id: feishuCredentials.app_id,
+                        app_secret: feishuCredentials.app_secret,
+                        open_id: feishuCredentials.open_id,
+                        corp_id: config.corp_id,
+                        corp_secret: config.secret,
+                        agent_id: config.agent_id,
+                        token: config.token,
+                        aes_key: config.aes_key
+                    })
+                });
+                const data = await resp.json();
+                
+                if (data.success) {
+                    setStepStatus('step-install-plugin', 'completed');
+                    addLog('app-logs', '✓ 插件安装命令已发送', 'success');
+                    
+                    // 显示发送的命令
+                    if (data.steps) {
+                        data.steps.forEach(step => {
+                            addLog('app-logs', `  ${step.status === 'success' ? '✓' : '!'} ${step.message}`, step.status === 'success' ? 'info' : 'warn');
+                        });
+                    }
+                    
+                    // 等待一段时间后保存配置
+                    addLog('app-logs', '等待 OpenClaw 处理命令...');
+                    setTimeout(async () => {
+                        await saveApiConfig(config);
+                    }, 5000);
+                    
+                } else {
+                    setStepStatus('step-install-plugin', 'error');
+                    addLog('app-logs', `✗ 插件安装失败: ${data.message}`, 'error');
+                }
+            } catch (e) {
+                setStepStatus('step-install-plugin', 'error');
+                addLog('app-logs', `✗ 安装异常: ${e.message}`, 'error');
+            }
+        }
+        
+        async function saveApiConfig(config) {
+            setStepStatus('step-save-config', 'active');
+            addLog('app-logs', '正在保存 API 接收配置...');
+            
+            try {
+                const resp = await fetch('/api/new-member/save-api-config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        task_id: config.task_id
+                    })
+                });
+                const data = await resp.json();
+                
+                if (data.success) {
+                    setStepStatus('step-save-config', 'completed');
+                    addLog('app-logs', '✓ API 配置保存成功', 'success');
+                    
+                    // 获取最终二维码
+                    await getFinalQrcode(config);
+                    
+                } else {
+                    setStepStatus('step-save-config', 'error');
+                    addLog('app-logs', `✗ 保存失败: ${data.error}`, 'error');
+                }
+            } catch (e) {
+                setStepStatus('step-save-config', 'error');
+                addLog('app-logs', `✗ 保存异常: ${e.message}`, 'error');
+            }
+        }
+        
+        async function getFinalQrcode(config) {
+            addLog('app-logs', '正在获取微信插件二维码...');
+            
+            try {
+                const resp = await fetch('/api/wecom/wechat-qrcode?agent_id=' + config.agent_id);
+                const data = await resp.json();
+                
+                if (data.success && data.qrcode_base64) {
+                    addLog('app-logs', '✓ 获取二维码成功', 'success');
+                    addLog('app-logs', '🎉 全部配置完成！', 'success');
+                    
+                    // 显示最终二维码
+                    document.getElementById('final-qrcode-img').src = data.qrcode_base64;
+                    document.getElementById('step3-card').classList.remove('hidden');
+                    
+                } else {
+                    addLog('app-logs', `获取二维码失败: ${data.error || '未知错误'}`, 'warn');
+                    addLog('app-logs', '请手动从企微后台获取微信插件二维码', 'info');
+                }
+            } catch (e) {
+                addLog('app-logs', `获取二维码异常: ${e.message}`, 'warn');
+            }
         }
     </script>
 </body>
