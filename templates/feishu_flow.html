@@ -822,8 +822,9 @@
                                 <div class="step-title">向 OpenClaw 发送指令</div>
                                 <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
                                     <div class="cmd-preview">curl ifconfig.me</div>
-                                    <button class="btn btn-primary" style="padding:4px 12px;font-size:11px;font-weight:700;border-radius:6px;" id="confirm-send-btn" onclick="openConfirmModal()" disabled>点击发送</button>
+                                    <button class="btn btn-primary" style="padding:4px 12px;font-size:11px;font-weight:700;border-radius:6px;" id="confirm-send-btn" onclick="confirmSendCommand()" disabled>点击发送</button>
                                 </div>
+                                <div class="step-desc" id="step-command-desc" style="margin-top:3px;color:var(--amber);white-space:normal;">等待发送命令</div>
                                 <div class="step-desc" style="margin-top:3px;color:var(--amber);white-space:normal;">&#9432; 该命令用于获取 OpenClaw 部署机公网 IP，配置微信通道用</div>
                             </div>
                         </div>
@@ -869,6 +870,13 @@
     <script>
         let feishuSessionId = null;
         let pollTimer = null;
+        let pollInFlight = false;
+        let flowFinalized = false;
+        let feishuScanSince = 0;
+        let botFindingSince = 0;
+        let commandSendingSince = 0;
+        let ipFetchingSince = 0;
+        let stepDurationTicker = null;
         let logOpen = false;
         let flowState = {
             appId: '', appSecret: '', botName: '',
@@ -923,9 +931,13 @@
             // 动态描述文字（只在状态发生变化时更新，不在 sending/ip_done 重复覆盖）
             const d1 = document.getElementById('step-feishu-desc');
             const d2 = document.getElementById('step-bot-desc');
+            const d3 = document.getElementById('step-command-desc');
+            const d4 = document.getElementById('step-ip-desc');
             if (stage === 'init') {
                 if (d1) d1.textContent = '等待飞书 App 扫码确认';
                 if (d2) d2.textContent = '等待发起 OpenClaw 机器人识别';
+                if (d3) d3.textContent = '等待发送命令';
+                if (d4) d4.innerHTML = 'IP 地址：<span id="ip-value">等待获取...</span>';
             } else if (stage === 'scanned') {
                 if (d1) d1.textContent = '已完成扫码，登陆中...';
             } else if (stage === 'login_ok') {
@@ -933,9 +945,13 @@
                 if (d2) d2.textContent = 'OpenClaw 机器人识别中...';
             } else if (stage === 'bot_found') {
                 if (d1) d1.textContent = '已完成飞书登陆';
-                // d2 由 bot_found 回调单独设置，含机器人名
+                if (d3) d3.textContent = '等待发送命令';
+                if (d4) d4.innerHTML = 'IP 地址：<span id="ip-value">等待获取...</span>';
+            } else if (stage === 'sending') {
+                if (d3) d3.textContent = '向 OpenClaw 发送指令中...';
+                if (d4) d4.textContent = 'OpenClaw 部署机公网 IP 获取中...';
             }
-            // sending 和 ip_done 阶段不更新 d1/d2，保留已显示的机器人名
+            // ip_done 阶段不覆盖 d2，保留已显示的机器人名
         }
 
         function setLoginError(msg) {
@@ -950,6 +966,8 @@
         }
 
         function setIpError(msg) {
+            commandSendingSince = 0;
+            ipFetchingSince = 0;
             ['step-feishu', 'step-bot', 'step-command'].forEach(id => setStep(id, 'done'));
             setStep('step-ip', 'error', msg || '获取公网 IP 失败');
         }
@@ -973,7 +991,64 @@
             qr.classList.toggle('logged-in', done);
         }
 
+        const QR_CODE_LIB_CANDIDATES = [
+            'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',
+            'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js'
+        ];
+        const SCRIPT_LOAD_TIMEOUT_MS = 8000;
+        const INIT_API_TIMEOUT_MS = 25000;
+        const POLL_API_TIMEOUT_MS = 20000;
+        let qrcodeLibPromise = null;
+
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                let done = false;
+                const timer = setTimeout(() => {
+                    if (done) return;
+                    done = true;
+                    s.remove();
+                    reject(new Error('脚本加载超时: ' + src));
+                }, SCRIPT_LOAD_TIMEOUT_MS);
+
+                s.src = src;
+                s.async = true;
+                s.onload = () => {
+                    if (done) return;
+                    done = true;
+                    clearTimeout(timer);
+                    resolve();
+                };
+                s.onerror = () => {
+                    if (done) return;
+                    done = true;
+                    clearTimeout(timer);
+                    reject(new Error('脚本加载失败: ' + src));
+                };
+                document.head.appendChild(s);
+            });
+        }
+
+        async function ensureQrcodeLib() {
+            if (window.QRCode) return;
+            if (!qrcodeLibPromise) {
+                qrcodeLibPromise = (async () => {
+                    for (const src of QR_CODE_LIB_CANDIDATES) {
+                        try {
+                            await loadScript(src);
+                            if (window.QRCode) return;
+                        } catch (_) {}
+                    }
+                    throw new Error('二维码组件加载失败，请检查网络后刷新页面');
+                })();
+            }
+            await qrcodeLibPromise;
+        }
+
         function renderQrcode(content) {
+            if (!window.QRCode) {
+                throw new Error('二维码组件未就绪');
+            }
             const loading = document.getElementById('feishu-loading');
             const qr = document.getElementById('feishu-qrcode');
             const frame = document.querySelector('.qr-frame');
@@ -991,6 +1066,13 @@
 
         function resetFlowView() {
             if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+            stopDurationTicker();
+            pollInFlight = false;
+            flowFinalized = false;
+            feishuScanSince = 0;
+            botFindingSince = 0;
+            commandSendingSince = 0;
+            ipFetchingSince = 0;
             flowState = { appId: '', appSecret: '', botName: '', manageUrl: '', openId: '', ip: '' };
 
             const loading = document.getElementById('feishu-loading');
@@ -1004,11 +1086,16 @@
             chip.className = 'status-chip idle';
             chip.textContent = '等待扫码';
 
-            document.getElementById('manage-link').style.display = 'none';
-            document.getElementById('ip-panel').style.display = 'none';
-            document.getElementById('bot-name-chip').classList.add('hidden');
-            document.getElementById('confirm-send-btn').disabled = true;
-            document.getElementById('modal-confirm-btn').disabled = false;
+            const manageLink = document.getElementById('manage-link');
+            if (manageLink) manageLink.style.display = 'none';
+            const ipPanel = document.getElementById('ip-panel');
+            if (ipPanel) ipPanel.style.display = 'none';
+            const botNameChip = document.getElementById('bot-name-chip');
+            if (botNameChip) botNameChip.classList.add('hidden');
+            const confirmBtn = document.getElementById('confirm-send-btn');
+            if (confirmBtn) confirmBtn.disabled = true;
+            const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+            if (modalConfirmBtn) modalConfirmBtn.disabled = false;
 
             hideScanFeedback();
             setQrLoginSuccess(false);
@@ -1019,11 +1106,20 @@
             resetFlowView();
             addLog('开始初始化飞书扫码流程。');
             try {
-                const resp = await fetch('/api/feishu/init', { method: 'POST' });
+                await ensureQrcodeLib();
+                const initController = new AbortController();
+                const initTimeoutId = setTimeout(() => initController.abort(), INIT_API_TIMEOUT_MS);
+                const resp = await fetch('/api/feishu/init', {
+                    method: 'POST',
+                    signal: initController.signal
+                });
+                clearTimeout(initTimeoutId);
                 const data = await resp.json();
                 if (!data.success) throw new Error(data.error || '初始化失败');
 
                 feishuSessionId = data.session_id;
+                feishuScanSince = Date.now();
+                startDurationTicker();
                 renderQrcode(data.qr_content);
 
                 const chip = document.getElementById('feishu-status');
@@ -1033,25 +1129,85 @@
                 addLog('飞书二维码已生成，请扫码。', 'success');
                 startPolling();
             } catch (err) {
+                const msg = err && err.name === 'AbortError'
+                    ? '初始化超时，请检查网络或稍后重试'
+                    : (err.message || '未知错误');
                 const loading = document.getElementById('feishu-loading');
-                loading.innerHTML = `<div class="qr-loading-text" style="color:var(--red);">二维码生成失败：${escapeHtml(err.message)}</div>`;
-                setLoginError(err.message);
-                addLog('初始化失败：' + err.message, 'error');
+                loading.innerHTML = `<div class="qr-loading-text" style="color:var(--red);">二维码生成失败：${escapeHtml(msg)}</div>`;
+                setLoginError(msg);
+                addLog('初始化失败：' + msg, 'error');
+            }
+        }
+
+        function startDurationTicker() {
+            if (stepDurationTicker) return;
+            stepDurationTicker = setInterval(() => {
+                const now = Date.now();
+                const d1 = document.getElementById('step-feishu-desc');
+                const d2 = document.getElementById('step-bot-desc');
+                const d3 = document.getElementById('step-command-desc');
+                const d4 = document.getElementById('step-ip-desc');
+
+                if (feishuScanSince > 0 && botFindingSince === 0) {
+                    const sec = Math.max(1, Math.floor((now - feishuScanSince) / 1000));
+                    if (d1) d1.textContent = `飞书扫码登陆中（${sec}s）`;
+                }
+
+                if (botFindingSince > 0) {
+                    const sec = Math.max(1, Math.floor((now - botFindingSince) / 1000));
+                    const chip = document.getElementById('feishu-status');
+                    if (chip) {
+                        chip.className = 'status-chip info';
+                        chip.textContent = '识别机器人中';
+                    }
+                    if (d2) d2.textContent = `OpenClaw 机器人识别中（${sec}s）`;
+                }
+
+                if (commandSendingSince > 0) {
+                    const sec = Math.max(1, Math.floor((now - commandSendingSince) / 1000));
+                    if (d3) d3.textContent = `向 OpenClaw 发送指令中（${sec}s）`;
+                }
+
+                if (ipFetchingSince > 0) {
+                    const sec = Math.max(1, Math.floor((now - ipFetchingSince) / 1000));
+                    if (d4) d4.textContent = `OpenClaw 部署机公网 IP 获取中（${sec}s）`;
+                }
+            }, 1000);
+        }
+
+        function stopDurationTicker() {
+            if (stepDurationTicker) {
+                clearInterval(stepDurationTicker);
+                stepDurationTicker = null;
             }
         }
 
         function startPolling() {
+            if (pollTimer) clearInterval(pollTimer);
             pollTimer = setInterval(async () => {
-                if (!feishuSessionId) return;
+                if (!feishuSessionId || flowFinalized || pollInFlight) return;
+                const sessionAtRequest = feishuSessionId;
+                pollInFlight = true;
                 try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), POLL_API_TIMEOUT_MS);
                     const resp = await fetch('/api/feishu/poll', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ session_id: feishuSessionId })
+                        body: JSON.stringify({ session_id: sessionAtRequest }),
+                        signal: controller.signal
                     });
-                    handlePollResult(await resp.json());
+                    clearTimeout(timeoutId);
+                    const data = await resp.json();
+                    if (sessionAtRequest !== feishuSessionId || flowFinalized) return;
+                    handlePollResult(data);
                 } catch (err) {
-                    addLog('轮询异常：' + err.message, 'error');
+                    const msg = err && err.name === 'AbortError'
+                        ? '轮询超时，自动重试中...'
+                        : ('轮询异常：' + err.message);
+                    addLog(msg, 'warn');
+                } finally {
+                    pollInFlight = false;
                 }
             }, 2000);
         }
@@ -1060,20 +1216,33 @@
             const chip = document.getElementById('feishu-status');
 
             if (data.status === 'pending') {
-                chip.className = 'status-chip idle';
-                chip.textContent = '等待扫码';
+                if (botFindingSince > 0) {
+                    const sec = Math.max(1, Math.floor((Date.now() - botFindingSince) / 1000));
+                    chip.className = 'status-chip info';
+                    chip.textContent = `识别机器人中（${sec}s）`;
+                } else {
+                    chip.className = 'status-chip idle';
+                    chip.textContent = '等待扫码';
+                }
                 return;
             }
 
             if (data.status === 'scanned') {
                 chip.className = 'status-chip info';
                 chip.textContent = '已扫码，请确认';
+                if (feishuScanSince === 0) feishuScanSince = Date.now();
+                startDurationTicker();
                 setFeishuSubProgress('scanned');
                 showScanFeedback('扫码成功，请在飞书 App 点击确认登录。', true);
                 return;
             }
 
             if (data.status === 'expired') {
+                feishuScanSince = 0;
+                botFindingSince = 0;
+                commandSendingSince = 0;
+                ipFetchingSince = 0;
+                stopDurationTicker();
                 clearInterval(pollTimer); pollTimer = null;
                 chip.className = 'status-chip error';
                 chip.textContent = '二维码已过期';
@@ -1083,16 +1252,27 @@
             }
 
             if (data.status === 'login_ok') {
-                chip.className = 'status-chip success';
-                chip.textContent = '登录成功';
+                if (!botFindingSince) {
+                    feishuScanSince = 0;
+                    botFindingSince = Date.now();
+                    startDurationTicker();
+                    addLog('登录飞书成功，正在查找 OpenClaw 机器人。', 'success');
+                }
+                const sec = Math.max(1, Math.floor((Date.now() - botFindingSince) / 1000));
+                chip.className = 'status-chip info';
+                chip.textContent = '识别机器人中';
                 setQrLoginSuccess(true);
                 setFeishuSubProgress('login_ok');
-                showScanFeedback('登录成功，正在查找 OpenClaw 机器人...');
-                addLog('登录飞书成功，正在查找 OpenClaw 机器人。', 'success');
+                showScanFeedback('登录成功，正在查找 OpenClaw 机器人...', true);
+                if (sec > 45) {
+                    addLog('机器人识别耗时较长，请稍候，系统仍在自动轮询。', 'warn');
+                }
                 return;
             }
 
             if (data.status === 'completed') {
+                flowFinalized = true;
+                botFindingSince = 0;
                 clearInterval(pollTimer); pollTimer = null;
                 chip.className = 'status-chip success';
                 chip.textContent = '登录成功';
@@ -1106,9 +1286,11 @@
                 flowState.openId = data.open_id || '';
                 flowState.ip = data.openclaw_ip || '';
 
-                // Show bot name chip
-                document.getElementById('bot-name').textContent = flowState.botName;
-                document.getElementById('bot-name-chip').classList.remove('hidden');
+                // Show bot name chip（兼容节点不存在场景）
+                const botNameEl = document.getElementById('bot-name');
+                if (botNameEl) botNameEl.textContent = flowState.botName;
+                const botNameChipEl = document.getElementById('bot-name-chip');
+                if (botNameChipEl) botNameChipEl.classList.remove('hidden');
                 document.getElementById('confirm-send-btn').disabled = false;
                 setFeishuSubProgress('bot_found');
                 // 更新步骤 2 描述为机器人名
@@ -1128,6 +1310,11 @@
             }
 
             if (data.status === 'error') {
+                feishuScanSince = 0;
+                botFindingSince = 0;
+                commandSendingSince = 0;
+                ipFetchingSince = 0;
+                stopDurationTicker();
                 clearInterval(pollTimer); pollTimer = null;
                 hideScanFeedback();
                 setQrLoginSuccess(false);
@@ -1153,9 +1340,18 @@
         }
 
         async function confirmSendCommand() {
-            closeConfirmModal();
             document.getElementById('confirm-send-btn').disabled = true;
-            document.getElementById('modal-confirm-btn').disabled = true;
+            const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+            if (modalConfirmBtn) modalConfirmBtn.disabled = true;
+
+            commandSendingSince = Date.now();
+            ipFetchingSince = Date.now();
+            startDurationTicker();
+
+            const d3 = document.getElementById('step-command-desc');
+            if (d3) d3.textContent = '向 OpenClaw 发送指令中（1s）';
+            const d4 = document.getElementById('step-ip-desc');
+            if (d4) d4.innerHTML = 'OpenClaw 部署机公网 IP 获取中（1s）';
 
             setFeishuSubProgress('sending');
             addLog('用户已确认发送命令：执行 curl ifconfig.me');
@@ -1168,19 +1364,26 @@
                 });
                 const data = await resp.json();
                 if (!data.success || !data.ip) throw new Error(data.error || '未获取到公网 IP');
+                commandSendingSince = 0;
+                ipFetchingSince = 0;
                 applyIpResult(data.ip, false);
                 addLog('成功获取公网 IP：' + data.ip, 'success');
             } catch (err) {
+                commandSendingSince = 0;
+                ipFetchingSince = 0;
                 setIpError(err.message);
                 addLog('获取公网 IP 失败：' + err.message, 'error');
                 document.getElementById('confirm-send-btn').disabled = false;
-                document.getElementById('modal-confirm-btn').disabled = false;
+                if (modalConfirmBtn) modalConfirmBtn.disabled = false;
             }
         }
 
         function applyIpResult(ip, alreadyReady) {
+            commandSendingSince = 0;
+            ipFetchingSince = 0;
             flowState.ip = ip;
-            document.getElementById('ip-value').textContent = ip;
+            const d4 = document.getElementById('step-ip-desc');
+            if (d4) d4.innerHTML = `IP 地址：<span id="ip-value">${escapeHtml(ip)}</span>`;
             setFeishuSubProgress('ip_done');
             if (alreadyReady) addLog('已直接拿到 OpenClaw 公网 IP：' + ip, 'success');
         }

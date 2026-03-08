@@ -1056,6 +1056,59 @@
             if (status) el.classList.add(status);
         }
 
+        const QR_CODE_LIB_CANDIDATES = [
+            'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',
+            'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js'
+        ];
+        const SCRIPT_LOAD_TIMEOUT_MS = 8000;
+        const INIT_API_TIMEOUT_MS = 25000;
+        let qrcodeLibPromise = null;
+
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                let done = false;
+                const timer = setTimeout(() => {
+                    if (done) return;
+                    done = true;
+                    s.remove();
+                    reject(new Error('脚本加载超时: ' + src));
+                }, SCRIPT_LOAD_TIMEOUT_MS);
+
+                s.src = src;
+                s.async = true;
+                s.onload = () => {
+                    if (done) return;
+                    done = true;
+                    clearTimeout(timer);
+                    resolve();
+                };
+                s.onerror = () => {
+                    if (done) return;
+                    done = true;
+                    clearTimeout(timer);
+                    reject(new Error('脚本加载失败: ' + src));
+                };
+                document.head.appendChild(s);
+            });
+        }
+
+        async function ensureQrcodeLib() {
+            if (window.QRCode) return;
+            if (!qrcodeLibPromise) {
+                qrcodeLibPromise = (async () => {
+                    for (const src of QR_CODE_LIB_CANDIDATES) {
+                        try {
+                            await loadScript(src);
+                            if (window.QRCode) return;
+                        } catch (_) {}
+                    }
+                    throw new Error('二维码组件加载失败，请检查网络后刷新页面');
+                })();
+            }
+            await qrcodeLibPromise;
+        }
+
         // ─── Init ───
         document.addEventListener('DOMContentLoaded', async () => {
             await initFeishuQrcode();
@@ -1071,6 +1124,7 @@
             const statusDiv = document.getElementById('feishu-status');
 
             try {
+                await ensureQrcodeLib();
                 const resp = await fetch('/api/feishu/init', { method: 'POST' });
                 const data = await resp.json();
 
@@ -1081,6 +1135,7 @@
                     qrcodeDiv.innerHTML = '';
 
                     try {
+                        if (!window.QRCode) throw new Error('二维码组件未就绪');
                         new QRCode(qrcodeDiv, {
                             text: data.qr_content,
                             width: 160,
@@ -1088,7 +1143,7 @@
                             correctLevel: QRCode.CorrectLevel.M
                         });
                     } catch (e) {
-                        qrcodeDiv.innerHTML = '<div style="color:var(--red);font-size:12px;">二维码生成失败</div>';
+                        qrcodeDiv.innerHTML = `<div style="color:var(--red);font-size:12px;">二维码生成失败：${e.message || '未知错误'}</div>`;
                     }
 
                     statusDiv.className = 'status-chip idle';
@@ -1100,7 +1155,10 @@
                     statusDiv.textContent = '获取失败';
                 }
             } catch (e) {
-                loading.innerHTML = `<div class="qr-loading-text" style="color:var(--red);">网络错误</div>`;
+                const msg = e && e.name === 'AbortError'
+                    ? '初始化超时，请检查网络后重试'
+                    : (e.message || '网络错误');
+                loading.innerHTML = `<div class="qr-loading-text" style="color:var(--red);">${msg}</div>`;
             }
         }
 

@@ -455,10 +455,23 @@ def feishu_poll():
     session_id = data.get("session_id", "")
     logger.debug(f"[feishu_poll] 开始轮询, session_id={session_id}")
     
-    # 尝试获取锁，如果已有 poll 在执行，直接返回等待状态
+    # 尝试获取锁，如果已有 poll 在执行，优先返回已缓存结果，避免前端状态倒退
     if not feishu_poll_lock.acquire(blocking=False):
-        logger.debug("[feishu_poll] 已有 poll 在执行，返回等待状态")
-        return jsonify({"success": True, "status": "pending", "message": "等待扫码"})
+        logger.debug("[feishu_poll] 已有 poll 在执行，返回缓存状态")
+        sess = feishu_sessions.get(session_id) if session_id else None
+        if sess and sess.get("status") == "completed" and sess.get("result"):
+            poll_result = sess.get("result") or {}
+            return jsonify({
+                "success": True,
+                "status": "completed",
+                "app_id": poll_result.get("app_id"),
+                "app_secret": poll_result.get("app_secret"),
+                "bot_name": poll_result.get("bot_name"),
+                "open_id": poll_result.get("open_id"),
+                "openclaw_ip": poll_result.get("openclaw_ip"),
+                "manage_url": poll_result.get("manage_url")
+            })
+        return jsonify({"success": True, "status": "pending", "message": "上一轮处理中"})
     
     try:
         cwd_path = os.path.dirname(__file__) or '.'
