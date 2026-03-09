@@ -162,7 +162,9 @@ class NewMemberAppCreator:
     def __init__(self, corp_id: str):
         self.corp_id = corp_id
         self.base_url = "https://work.weixin.qq.com"
+        self.user_data_dir = f'./browser_data/{corp_id}'
         self.p = None
+        self.browser = None
         self.context = None
         self.page = None
         # 保存创建的应用配置
@@ -179,19 +181,34 @@ class NewMemberAppCreator:
         return []
     
     def _init_browser(self, headless: bool = True):
-        """初始化浏览器"""
+        """初始化浏览器（优先 Cookie 注入；无 Cookie 时回退持久化目录）"""
         if self.context:
             return
-        
-        cookies = self._load_cookies()
-        if not cookies:
-            raise Exception(f"未找到 Cookie，请先运行: python cookie_manager.py login {self.corp_id}")
-        
+
         self.p = sync_playwright().start()
-        self.browser = self.p.chromium.launch(headless=headless)
-        self.context = self.browser.new_context()
-        self.context.add_cookies(cookies)
-        self.page = self.context.new_page()
+
+        # 方案1：Cookie 注入（当前环境更稳定）
+        cookies = self._load_cookies()
+        if cookies:
+            self.browser = self.p.chromium.launch(headless=headless)
+            self.context = self.browser.new_context()
+            self.context.add_cookies(cookies)
+            self.page = self.context.new_page()
+            logger.info("浏览器已使用 Cookie 注入模式启动")
+            return
+
+        # 方案2：回退到持久化目录
+        if not os.path.isdir(self.user_data_dir):
+            raise Exception(f"未找到 Cookie/会话目录，请先运行: python cookie_manager.py login {self.corp_id}")
+
+        self.context = self.p.chromium.launch_persistent_context(
+            self.user_data_dir,
+            headless=headless,
+            viewport={'width': 1280, 'height': 800},
+            args=['--window-size=1280,800'] if not headless else []
+        )
+        self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
+        logger.info("浏览器已回退为持久化会话目录模式")
     
     def _close_browser(self):
         """关闭浏览器"""
@@ -225,29 +242,114 @@ class NewMemberAppCreator:
         return token, aes_key
     
     def _upload_logo(self) -> Optional[str]:
-        """上传 OpenClaw logo 图片，返回图片 URL"""
+        """上传 OpenClaw logo 图片（含“编辑logo”弹窗保存），返回图片路径"""
         if not os.path.exists(OPENCLAW_LOGO_PATH):
             logger.warning(f"Logo 文件不存在: {OPENCLAW_LOGO_PATH}")
             return None
-        
-        try:
-            # 进入创建应用页面会有上传按钮
-            # 使用 JavaScript 触发文件上传
-            file_input = self.page.query_selector('input[type="file"]')
-            if file_input:
-                file_input.set_input_files(OPENCLAW_LOGO_PATH)
-                time.sleep(2)
-                logger.info("Logo 已上传")
-                return OPENCLAW_LOGO_PATH
-        except Exception as e:
-            logger.warning(f"上传 Logo 失败: {e}")
-        
+
+        def _has_bound_file_input() -> bool:
+            try:
+                return bool(self.page.evaluate('''() => {
+                    return Array.from(document.querySelectorAll('input[type="file"]'))
+                        .some(i => i.files && i.files.length > 0);
+                }'''))
+            except Exception:
+                return False
+
+        def _save_logo_modal_if_open() -> None:
+            """若出现“编辑logo”弹窗，点击弹窗内“保存”"""
+            try:
+                has_modal = bool(self.page.locator('text=编辑logo').count())
+                if not has_modal:
+                    return
+
+                save_in_modal = self.page.locator(
+                    '.ww_dialog button:has-text("保存"), .ww_dialog a:has-text("保存"), '
+                    '.ui_dialog button:has-text("保存"), .ui_dialog a:has-text("保存")'
+                )
+                if save_in_modal.count() > 0:
+                    save_in_modal.first.click(timeout=2000, force=True)
+                    time.sleep(1.5)
+                    logger.info("Logo 弹窗已点击保存")
+            except Exception as e:
+                logger.warning(f"Logo 弹窗保存步骤异常: {e}")
+
+        # 方案1：先点小相机/Logo 入口，触发“编辑logo”弹窗
+        camera_selectors = [
+            'text=应用logo',
+            '[class*="logo"]',
+            '[class*="camera"]',
+            '.js_upload',
+        ]
+        for selector in camera_selectors:
+            try:
+                loc = self.page.locator(selector)
+                if loc.count() > 0:
+                    loc.first.click(timeout=1200, force=True)
+                    time.sleep(0.4)
+                    if self.page.locator('text=编辑logo').count() > 0:
+                        break
+            except Exception:
+                continue
+
+        # 方案2：在弹窗/页面内触发文件选择并注入图片
+        trigger_selectors = [
+            '.ww_dialog text=选择图片',
+            '.ui_dialog text=选择图片',
+            'text=选择图片',
+            'text=上传',
+            'text=更换',
+            'input[type="file"][accept*="image"]',
+            'input[type="file"]',
+        ]
+
+        # 2.1 优先直接给 file input 注入文件
+        for selector in ['input[type="file"][accept*="image"]', 'input[type="file"]']:
+            try:
+                loc = self.page.locator(selector)
+                count = min(loc.count(), 5)
+                for i in range(count):
+                    try:
+                        loc.nth(i).set_input_files(OPENCLAW_LOGO_PATH)
+                        time.sleep(0.8)
+                        if _has_bound_file_input():
+                            _save_logo_modal_if_open()
+                            logger.info("Logo 已通过 file input 直接上传")
+                            return OPENCLAW_LOGO_PATH
+                    except Exception:
+                        continue
+            except Exception:
+                continue
+
+        # 2.2 再尝试 filechooser 路径
+        for selector in trigger_selectors:
+            try:
+                loc = self.page.locator(selector)
+                count = min(loc.count(), 5)
+            except Exception:
+                continue
+
+            for i in range(count):
+                try:
+                    with self.page.expect_file_chooser(timeout=1500) as fc_info:
+                        loc.nth(i).click(timeout=1200, force=True)
+                    fc_info.value.set_files(OPENCLAW_LOGO_PATH)
+                    time.sleep(0.8)
+                    _save_logo_modal_if_open()
+                    if _has_bound_file_input() or self.page.locator('text=重新上传').count() > 0:
+                        logger.info(f"Logo 已通过触发器上传: {selector}[{i}]")
+                        return OPENCLAW_LOGO_PATH
+                except Exception:
+                    continue
+
+        logger.warning("上传 Logo 失败：未触发可用 filechooser，或弹窗未完成保存")
         return None
     
     def create_app_for_member(
         self,
         member_name: str,
         member_user_id: str,
+        callback_url: str = "",
         headless: bool = True,
         keep_page_open: bool = True
     ) -> Dict:
@@ -276,6 +378,7 @@ class NewMemberAppCreator:
         """
         app_name = f"{member_name}的openclaw"
         app_desc = f"{member_name}的openclaw"
+        callback_url = callback_url or ""
         
         result = {
             "success": False,
@@ -311,105 +414,298 @@ class NewMemberAppCreator:
             
             self.page.goto(f"{self.base_url}/wework_admin/frame#apps/createSelfApp")
             time.sleep(3)
+
+            # 兼容新版入口：先从“应用分类页”点击“创建应用”进入表单
+            try:
+                entered_form = self.page.evaluate('''() => {
+                    const nodes = Array.from(document.querySelectorAll('.js_add_app, a, button'));
+                    const cands = nodes.filter(n => {
+                        const t = (n.innerText || n.textContent || '').trim();
+                        const visible = !!(n.offsetParent || n.getClientRects().length);
+                        return visible && t.includes('创建应用');
+                    });
+                    if (!cands.length) return false;
+                    cands[cands.length - 1].click();
+                    return true;
+                }''')
+                if entered_form:
+                    logger.info("  ✓ 已从应用分类页进入创建表单")
+                    time.sleep(2)
+            except Exception as e:
+                logger.warning(f"  进入创建表单失败，继续按旧流程尝试: {e}")
             
             # 上传 Logo（OpenClaw 小龙虾图片）
-            logo_input = self.page.query_selector('input[type="file"][accept*="image"]')
-            if logo_input and os.path.exists(OPENCLAW_LOGO_PATH):
-                logo_input.set_input_files(OPENCLAW_LOGO_PATH)
-                time.sleep(2)
+            logo_uploaded = self._upload_logo()
+            if logo_uploaded:
                 logger.info("  ✓ Logo 已上传")
+            else:
+                # 兜底重试不同 file input 选择器
+                try:
+                    fallback_input = self.page.query_selector('input[type="file"][accept*="image"], input[type="file"]')
+                    if fallback_input and os.path.exists(OPENCLAW_LOGO_PATH):
+                        fallback_input.set_input_files(OPENCLAW_LOGO_PATH)
+                        time.sleep(2)
+                        logger.info("  ✓ Logo 已通过兜底选择器上传")
+                except Exception as e:
+                    logger.warning(f"  Logo 兜底上传失败: {e}")
             
-            # 填写应用名称
-            name_input = self.page.query_selector('input[placeholder*="应用名"], input.ww_input')
+            # 填写应用名称（使用更稳定选择器）
+            name_input = self.page.query_selector('input[name="name"], input[placeholder*="应用名称"], input[placeholder*="应用名"], .app_name_input input, input.ww_input')
             if name_input:
                 name_input.fill(app_name)
                 logger.info(f"  ✓ 应用名称: {app_name}")
             else:
-                # 尝试其他选择器
                 self.page.evaluate(f'''() => {{
                     const inputs = document.querySelectorAll('input');
                     for (const input of inputs) {{
-                        if (input.placeholder && input.placeholder.includes('应用')) {{
+                        const p = input.placeholder || '';
+                        const n = input.name || '';
+                        if (n === 'name' || p.includes('应用名称') || p.includes('应用名')) {{
                             input.value = '{app_name}';
                             input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                            input.dispatchEvent(new Event('change', {{ bubbles: true }}));
                             return true;
                         }}
                     }}
                     return false;
                 }}''')
-            
+
             # 填写应用简介
-            desc_textarea = self.page.query_selector('textarea')
+            desc_textarea = self.page.query_selector('textarea[name="description"], textarea[placeholder*="描述"], textarea')
             if desc_textarea:
                 desc_textarea.fill(app_desc)
                 logger.info(f"  ✓ 应用简介: {app_desc}")
-            
+
             # ============================================================
-            # Step 2: 设置可见范围（仅限新成员本人）
+            # Step 2: 设置可见范围
             # ============================================================
             logger.info("[Step 2] 设置可见范围...")
-            
-            # 点击可见范围选择按钮
-            visible_btn = self.page.query_selector('.js_show_visible_mod, .ww_groupSelBtn, a:has-text("选择")')
-            if visible_btn:
-                visible_btn.click()
-                time.sleep(2)
-                
-                # 在成员选择对话框中搜索并选择成员
-                search_input = self.page.query_selector('.ww_dialog input[type="text"], .search_input')
-                if search_input:
-                    search_input.fill(member_name)
-                    time.sleep(1)
-                
-                # 选择成员（在 jstree 中点击）
-                member_selected = self.page.evaluate(f'''() => {{
-                    const anchors = document.querySelectorAll('.jstree-anchor');
-                    for (const anchor of anchors) {{
-                        const text = anchor.innerText || anchor.textContent;
-                        if (text && text.includes('{member_name}')) {{
-                            anchor.click();
-                            return true;
+            member_selected = False
+            try:
+                # 打开可见范围选择
+                self.page.click('text=选择成员', timeout=3000)
+                time.sleep(1)
+
+                # 优先选择目标成员
+                if member_name:
+                    search_input = self.page.query_selector('.ww_dialog input[type="text"], .search_input, input[placeholder*="搜索"]')
+                    if search_input:
+                        search_input.fill(member_name)
+                        time.sleep(1)
+
+                    member_selected = self.page.evaluate(f'''() => {{
+                        const anchors = document.querySelectorAll('.jstree-anchor');
+                        for (const anchor of anchors) {{
+                            const text = anchor.innerText || anchor.textContent;
+                            if (text && text.includes('{member_name}')) {{
+                                anchor.click();
+                                return true;
+                            }}
                         }}
-                    }}
-                    return false;
-                }}''')
-                
-                if member_selected:
-                    logger.info(f"  ✓ 已选择成员: {member_name}")
+                        return false;
+                    }}''')
+
+                # 回退：选择全部成员，确保可创建
+                if not member_selected:
+                    self.page.evaluate('''() => {
+                        const anchors = Array.from(document.querySelectorAll('.jstree-anchor'));
+                        const allNode = anchors.find(a => {
+                            const t = (a.innerText || a.textContent || '').trim();
+                            return t.includes('全部成员') || t.includes('全体成员');
+                        });
+                        if (allNode) allNode.click();
+                    }''')
+                    logger.warning(f"  未锁定成员 {member_name}，已回退选择全部成员")
                 else:
-                    # 尝试通过 UserID 选择
-                    logger.warning(f"  未找到成员 {member_name}，尝试使用 UserID")
-                
-                # 点击确认按钮
+                    logger.info(f"  ✓ 已选择成员: {member_name}")
+
+                # 确认选择
                 confirm_btn = self.page.query_selector('.js_submit, button:has-text("确定")')
                 if confirm_btn:
                     confirm_btn.click()
                     time.sleep(1)
+            except Exception as e:
+                logger.warning(f"  设置可见范围异常，继续尝试创建: {e}")
             
             # ============================================================
             # Step 3: 提交创建应用
             # ============================================================
             logger.info("[Step 3] 提交创建应用...")
             
-            create_btn = self.page.query_selector('a:has-text("创建应用"), button:has-text("创建应用"), .js_create')
+            create_btn = self.page.query_selector('button.js_create, a.js_create, button:has-text("创建应用"), a:has-text("创建应用")')
             if create_btn:
                 create_btn.click()
-                time.sleep(3)
-            
-            # 从 URL 获取 AgentId
+            else:
+                # 兜底：点击可见的“创建应用”按钮
+                self.page.evaluate('''() => {
+                    const nodes = Array.from(document.querySelectorAll('button, a, div'));
+                    const candidates = nodes.filter(n => {
+                        const txt = (n.innerText || n.textContent || '').trim();
+                        const visible = !!(n.offsetParent || n.getClientRects().length);
+                        return visible && txt === '创建应用';
+                    });
+                    if (candidates.length) candidates[candidates.length - 1].click();
+                }''')
+
+            try:
+                self.page.wait_for_url("**modApiApp/**", timeout=12000)
+            except Exception:
+                time.sleep(4)
+
+            # 若仍停留在创建页，尝试处理阻塞后重试提交
+            if 'createApiApp' in self.page.url:
+                page_text = ''
+                try:
+                    page_text = self.page.inner_text('body')
+                except Exception:
+                    pass
+
+                # 阻塞1：Logo 未上传，先补传再重试
+                if '请上传应用logo' in page_text or '请上传应用Logo' in page_text:
+                    logger.warning("  检测到 Logo 校验失败，尝试重新上传")
+                    if self._upload_logo():
+                        retry_btn = self.page.query_selector('button.js_create, a.js_create, button:has-text("创建应用"), a:has-text("创建应用")')
+                        if retry_btn:
+                            retry_btn.click()
+                            try:
+                                self.page.wait_for_url("**modApiApp/**", timeout=12000)
+                            except Exception:
+                                time.sleep(3)
+
+                # 阻塞2：应用名重复，改名后重试
+                if '应用名称已存在' in page_text or '名称已存在' in page_text:
+                    retry_name = f"{app_name}_{int(time.time()) % 10000}"
+                    name_input_retry = self.page.query_selector('input[name="name"], input[placeholder*="应用名称"], input[placeholder*="应用名"], .app_name_input input, input.ww_input')
+                    if name_input_retry:
+                        name_input_retry.fill(retry_name)
+                        app_name = retry_name
+                        result['app_name'] = retry_name
+                        logger.info(f"  检测到应用名重复，重试名称: {retry_name}")
+                    retry_btn = self.page.query_selector('button.js_create, a.js_create, button:has-text("创建应用"), a:has-text("创建应用")')
+                    if retry_btn:
+                        retry_btn.click()
+                        try:
+                            self.page.wait_for_url("**modApiApp/**", timeout=12000)
+                        except Exception:
+                            time.sleep(3)
+
+            # 从 URL 获取 AgentId（兼容多种路由格式）
             current_url = self.page.url
-            match = re.search(r'modApiApp/(\d+)', current_url)
-            if match:
-                result["agent_id"] = match.group(1)
+            logger.info(f"  当前URL: {current_url}")
+            if 'createApiApp' in current_url:
+                try:
+                    ts = int(time.time())
+                    form_html = f"/tmp/wecom_create_form_{ts}.html"
+                    form_png = f"/tmp/wecom_create_form_{ts}.png"
+                    with open(form_html, 'w', encoding='utf-8') as f:
+                        f.write(self.page.content())
+                    self.page.screenshot(path=form_png, full_page=True)
+                    logger.info(f"  创建页快照: {form_html}, {form_png}")
+                except Exception as e:
+                    logger.warning(f"  保存创建页快照失败: {e}")
+            patterns = [
+                r'modApiApp/(\d+)',
+                r'[?&]agentid=(\d+)',
+                r'[?&]agent_id=(\d+)'
+            ]
+            for ptn in patterns:
+                m = re.search(ptn, current_url)
+                if m:
+                    result["agent_id"] = m.group(1)
+                    break
+
+            if not result["agent_id"]:
+                # 尝试从页面元素提取
+                agent_el = self.page.query_selector('[data-agent-id], .agent_id, [name="agentid"]')
+                if agent_el:
+                    result["agent_id"] = (
+                        agent_el.get_attribute('data-agent-id')
+                        or agent_el.get_attribute('value')
+                        or (agent_el.text_content() or '').strip()
+                    )
+
+            if not result["agent_id"]:
+                # 最后兜底：从页面HTML里正则抓取
+                html = self.page.content()
+                m = re.search(r'modApiApp/(\d+)', html)
+                if m:
+                    result["agent_id"] = m.group(1)
+
+            if not result["agent_id"]:
+                # 回退到应用列表页，根据应用名定位并提取 AgentId
+                logger.info("  直接提取 AgentId 失败，尝试从应用列表回查...")
+                self.page.goto(f"{self.base_url}/wework_admin/frame#apps/modApiApp")
+                time.sleep(3)
+                current_url = self.page.url
+
+                # 优先：直接点击刚创建的应用名，观察是否跳到详情页
+                try:
+                    app_locator = self.page.locator(f"text={app_name}").first
+                    if app_locator.count() > 0:
+                        app_locator.click()
+                        time.sleep(2)
+                        jump_url = self.page.url
+                        m_jump = re.search(r'modApiApp/(\d+)', jump_url)
+                        if m_jump:
+                            result["agent_id"] = m_jump.group(1)
+                            logger.info(f"  应用列表点击后URL: {jump_url}")
+                except Exception as e:
+                    logger.warning(f"  应用列表点击回查失败: {e}")
+
+                html = self.page.content()
+
+                # 次优：从页面HTML里找带应用名附近的 modApiApp 链接
+                if not result["agent_id"]:
+                    escaped_name = re.escape(app_name)
+                    around_pattern = rf'(modApiApp/(\d+)[\s\S]{{0,1200}}{escaped_name}|{escaped_name}[\s\S]{{0,1200}}modApiApp/(\d+))'
+                    m = re.search(around_pattern, html)
+                    if m:
+                        result["agent_id"] = m.group(2) or m.group(3) or ""
+
+                # 兜底：全页面首个 modApiApp id
+                if not result["agent_id"]:
+                    m2 = re.search(r'modApiApp/(\d+)', html)
+                    if m2:
+                        result["agent_id"] = m2.group(1)
+
+                logger.info(f"  应用列表回查URL: {current_url}")
+
+            if result["agent_id"]:
                 logger.info(f"  ✓ AgentId: {result['agent_id']}")
             else:
-                # 尝试从页面提取
-                agent_el = self.page.query_selector('[data-agent-id], .agent_id')
-                if agent_el:
-                    result["agent_id"] = agent_el.get_attribute('data-agent-id') or agent_el.text_content().strip()
-            
-            if not result["agent_id"]:
-                result["error"] = "未能获取 AgentId"
+                page_hint = ""
+                debug_html_path = ""
+                debug_png_path = ""
+                try:
+                    page_hint = self.page.evaluate('''() => {
+                        const sels = ['.ww_inputWithTips_tips', '.ui_tips, .ww_tips', '.error, .err'];
+                        for (const s of sels) {
+                            const n = document.querySelector(s);
+                            if (n && (n.innerText || n.textContent)) return (n.innerText || n.textContent).trim();
+                        }
+                        return '';
+                    }''') or ""
+                except Exception:
+                    pass
+                try:
+                    ts = int(time.time())
+                    debug_html_path = f"/tmp/wecom_create_debug_{ts}.html"
+                    debug_png_path = f"/tmp/wecom_create_debug_{ts}.png"
+                    with open(debug_html_path, 'w', encoding='utf-8') as f:
+                        f.write(self.page.content())
+                    self.page.screenshot(path=debug_png_path, full_page=True)
+                    logger.info(f"  已保存调试快照: {debug_html_path}, {debug_png_path}")
+                except Exception as e:
+                    logger.warning(f"  保存调试快照失败: {e}")
+                extra = []
+                if page_hint:
+                    extra.append(f"页面提示: {page_hint}")
+                if debug_html_path:
+                    extra.append(f"html: {debug_html_path}")
+                if debug_png_path:
+                    extra.append(f"png: {debug_png_path}")
+                detail = ('；' + '；'.join(extra)) if extra else ''
+                result["error"] = f"未能获取 AgentId（创建后页面未跳转到详情）{detail}"
                 return result
             
             # ============================================================
@@ -443,10 +739,10 @@ class NewMemberAppCreator:
             # ============================================================
             logger.info("[Step 5] 配置接收消息 API...")
             
-            # 生成 Token 和 EncodingAESKey
+            # 先生成兜底 Token 和 EncodingAESKey（若页面可随机生成则优先页面生成值）
             result["token"], result["aes_key"] = self._generate_token_and_aes_key()
-            logger.info(f"  ✓ Token: {result['token']}")
-            logger.info(f"  ✓ EncodingAESKey: {result['aes_key']}")
+            logger.info(f"  预置 Token: {result['token']}")
+            logger.info(f"  预置 EncodingAESKey: {result['aes_key']}")
             
             # 进入接收消息设置页面
             # 点击"接收消息"或"API接收消息"
@@ -472,28 +768,38 @@ class NewMemberAppCreator:
                 url_input.fill("")  # URL 暂时为空
                 logger.info("  ✓ URL: (暂时为空，等待后续更新)")
             
-            # Token
+            # Token / EncodingAESKey 输入框
             token_input = self.page.query_selector('input[name="token"], input[placeholder*="Token"]')
-            if token_input:
-                token_input.fill(result["token"])
-            
-            # EncodingAESKey
             aes_input = self.page.query_selector('input[name="encodingAESKey"], input[placeholder*="EncodingAESKey"]')
-            if aes_input:
-                aes_input.fill(result["aes_key"])
-            
-            # 随机生成按钮（如果有的话）
-            random_btn = self.page.query_selector('a:has-text("随机获取")')
-            if random_btn and not result["token"]:
+
+            # 点击“随机生成/随机获取”按钮（优先使用后台页面随机值）
+            random_btn = self.page.query_selector(
+                'a:has-text("随机获取"), button:has-text("随机获取"), a:has-text("随机生成"), button:has-text("随机生成")'
+            )
+            if random_btn:
                 random_btn.click()
                 time.sleep(1)
-                # 重新获取生成的值
-                if token_input:
-                    result["token"] = token_input.get_attribute('value') or ""
-                if aes_input:
-                    result["aes_key"] = aes_input.get_attribute('value') or ""
+                logger.info("  ✓ 已点击随机生成 Token/EncodingAESKey")
+
+            # 读取页面生成值；若读取失败则回退使用本地生成值
+            if token_input:
+                page_token = (token_input.get_attribute('value') or "").strip()
+                if page_token:
+                    result["token"] = page_token
+                else:
+                    token_input.fill(result["token"])
+
+            if aes_input:
+                page_aes = (aes_input.get_attribute('value') or "").strip()
+                if page_aes:
+                    result["aes_key"] = page_aes
+                else:
+                    aes_input.fill(result["aes_key"])
+
+            logger.info(f"  ✓ Token: {result['token']}")
+            logger.info(f"  ✓ EncodingAESKey: {result['aes_key']}")
             
-            logger.info("  ✓ 接收消息配置已填写（URL 待更新）")
+            logger.info("  ✓ 接收消息配置已填写（等待后续流程触发保存）")
             
             # ============================================================
             # 保存配置（不关闭页面）
@@ -512,7 +818,7 @@ class NewMemberAppCreator:
             logger.info(f"  Token: {result['token']}")
             logger.info(f"  EncodingAESKey: {result['aes_key']}")
             logger.info("=" * 60)
-            logger.info("  页面保持打开，等待 URL 更新")
+            logger.info("  页面保持打开，等待功能4执行完成后点击保存")
             logger.info("=" * 60)
             
             if not keep_page_open:
@@ -568,6 +874,28 @@ class NewMemberAppCreator:
             logger.error(f"更新 URL 失败: {e}")
             return False
     
+    def save_api_config(self) -> bool:
+        """点击 API 接收页面的保存按钮（功能4执行完成后调用）"""
+        if not self.page:
+            logger.error("页面未打开，无法保存")
+            return False
+
+        try:
+            save_btn = self.page.query_selector(
+                'a:has-text("保存"), button:has-text("保存"), .js_save, .js_submit'
+            )
+            if not save_btn:
+                logger.error("未找到保存按钮")
+                return False
+
+            save_btn.click()
+            time.sleep(2)
+            logger.info("✓ 已点击保存按钮")
+            return True
+        except Exception as e:
+            logger.error(f"保存 API 配置失败: {e}")
+            return False
+
     def get_created_config(self) -> Optional[Dict]:
         """获取已创建的应用配置"""
         return self.created_config
